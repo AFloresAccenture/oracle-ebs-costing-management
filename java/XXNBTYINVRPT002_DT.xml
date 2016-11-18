@@ -1,0 +1,1799 @@
+<?xml version="1.0" encoding ="ISO-8859-15"?>
+<!-- $Header: XXNBTYINVRPT002_DT.xml 115.2 2016/03/17 07:41:38 xdouser noship $ -->
+<!-- dbdrv: none -->
+
+<dataTemplate description = "NBTY Yield and Material Variance Report " name = "XXNBTYINVRPT002_DT">
+<!--  
+ *  File           : XXNBTYINVRPT002_DT.xml
+ *  Author         : JM Cuales, Accenture
+ *  Date           Author                    Description
+ *  ____________________________________________________________________________________________________
+ *  2016-MAR-17    JM Cuales                 Initial Creation
+ *  2016-APR-23    Khristine Austero         Update Unit COst, UOM, Total Difference query
+ *  2016-MAY-16    Khristine Austero         Update condition and change the transction type name
+ *  2016-MAY-18    Khristine Austero         Optimize query
+ *  2016-MAY-19    Khristine Austero         Add NVL to the wiwc_ttl columns, Change computation in getting WIP COMP Transaction Amount
+ *  2016-MAY-31    Khristine Austero         Change formula in getting the MTL Usage Variance Amount and Total Difference
+ *  2016-JUN-01    Khristine Austero         Get latest Batch ID based on last update date
+ *  2016-JUN-07    Khristine Austero         Index 2 and 3 (wiwc) comment "ccd.cost_level = 0"
+ *  2016-JUN-14    Khristine Austero         Add filtering opm sum(cost_level=1) and discrete sum(level_type=2)
+ *                                           comment the filtering ccm.cost_cmpntcls_code IN ('RMW','MAT_OH') and cicd.cost_element IN ('Material','Material Overhead')
+ *  2016-JUN-23    Khristine Austero         Add filtering transaction_date for BATCH COMP bc and abc
+ *  2016-JUN-24    Khristine Austero         Get the unit cost of bc as the total value of WIP COMP's in INDEX ID 1
+ *  2016-JUN-27    Khristine Austero         Batches with multiple values and different mmt.attribute1 should be summed up (yield qty  and the theoretical quantity)
+ *  2016-JUN-30    Khristine Austero         Optimize Query
+ *  2016-JUL-05    Khristine Austero         Add Distinct in bc_sql
+ *  2016-JUL-17    Khristine Austero         [change request]Add GCC code combination and PRODUCING_ORG
+ *                                           (mmt.attribute5) from MTL_MATERIAL_TRANSACTIONS
+ *  2016-JUL-25    Khristine Austero         gl account string for 13921 account, there should not be Any change to amounts
+ *  2016-AUG-15    Khristine Austero         Update p_batch_comp filtering ()
+ *  2016-NOV-03    Khristine Austero         [PROD] Modified for discreet org cost validation
+ 
+ -->
+ <properties>
+  <property name="xml_tag_case" value="upper" />
+
+ </properties>
+  <parameters>
+    <parameter name = "P_DATE_FROM" dataType = "VARCHAR2"/>
+    <parameter name = "P_DATE_TO" dataType = "VARCHAR2"/>
+    <parameter name = "P_BATCH_ID" dataType = "VARCHAR2"/>
+    <parameter name = "P_ITEM_NUM" dataType = "VARCHAR2"/>
+    <parameter name = "P_TRN_TYPE" dataType = "VARCHAR2"/>
+    <parameter name = "P_BATCH_CMPLT" dataType = "VARCHAR2"/>
+  </parameters>
+
+  <dataQuery>
+    <sqlStatement name = "YLD_MTL_SQL">
+      <![CDATA[
+               WITH wiwc_sql AS
+                 (SELECT hou.name            AS OPERATING_UNIT ,
+                   ood.organization_code     AS ORGANIZATION_CODE,
+                   xep.name                  AS LEGAL_ENTITY ,
+                   mmt.transaction_date      AS TRANSACTION_DATE,
+                   mmt.transaction_reference AS TRANSACTION_REFERENCE,
+                   mmt.transaction_id        AS TRANSACTION_ID,
+                   mmt.transaction_type_id   AS TRANSACTION_TYPE_ID,
+                   mtt.transaction_type_name AS TRANSACTION_TYPE_NAME,
+                   mmt.subinventory_code     AS SUBINVENTORY_CODE,
+                   mmt.inventory_item_id     AS INVENTORY_ITEM_ID,
+                   msib.segment1             AS ITEM_NUMBER ,
+                   mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                   msib.item_type            AS ITEM_TYPE,
+                   mmt.transaction_uom       AS TRANSACTION_UOM ,
+                   (
+                   CASE
+                     WHEN mtt.attribute4 = 'WIP COMP'
+                     THEN mmt.transaction_quantity
+                   END) AS TRANSACTION_QUANTITY ,
+                   -----------------Producing_Org
+                   (
+                   CASE
+                     WHEN mtt.attribute4 = 'WIP COMP'
+                     THEN mmt.attribute5
+                   END) AS PRODUCING_ORG
+                   ---------- Total Value
+                   ,
+                   (
+                   CASE
+                     WHEN mtt.attribute4 = 'WIP ISSUE'
+                     THEN (
+                       CASE
+                         WHEN gxeh.header_id IS NOT NULL
+                         THEN
+                           (SELECT SUM(gxel.base_amount)
+                           FROM gmf_xla_extract_lines gxel
+                           WHERE 1                   =1
+                           AND gxel.journal_line_type= 'INV'
+                           AND gxel.header_id        = gxeh.header_id
+                           )
+                         ELSE 0
+                       END)
+                     WHEN mtt.ATTRIBUTE4 = 'WIP COMP'
+                     THEN (
+                       (SELECT NVL(SUM(cmpnt_cost),0)
+                       FROM
+                         (SELECT DISTINCT mp_proc.organization_id ,
+                           msi_proc.segment1 ,
+                           ccd.inventory_item_id ,
+                           ccd.cmpnt_cost ,
+                           ccm.cost_cmpntcls_code ,
+                           ccd.period_id
+                         FROM CM_CMPT_DTL ccd,
+                           CM_CMPT_MST ccm ,
+                           mtl_system_items_b msi_proc,
+                           mtl_parameters mp_proc
+                         WHERE 1                   =1
+                         AND ccd.inventory_item_id = msi_proc.inventory_item_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                         AND ccd.cost_cmpntcls_id  = ccm.cost_cmpntcls_id
+                         AND ccd.organization_id   = mp_proc.organization_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                           --AND ccm.cost_cmpntcls_code   IN ('RMW','MAT_OH')
+                         AND ccd.delete_mark = 0
+                         AND ccd.cost_level  = 1
+                         ) proc_cost
+                       WHERE 1                         =1
+                       AND proc_cost.period_id         = gps.period_id
+                       AND mmt.TRANSACTION_DATE       >= gps.START_DATE
+                       AND mmt.TRANSACTION_DATE        < gps.END_DATE + 1
+                       AND proc_cost.inventory_item_id = msib.inventory_item_id
+                       AND proc_cost.organization_id   = msib.organization_id
+                       AND proc_cost.organization_id   = mp.organization_id
+                       ) )
+                   END) AS TOTAL_VALUE
+                   -------
+                   --, 0 AS UNIT_COST
+                   ,
+                   mmt.reason_id       AS REASON_ID ,
+                   mtt.attribute1      AS REASON_CODE ,
+                   mmt.attribute1      AS LOT_NUMBER ,
+                   mmt.attribute2      AS BATCH_COMPLETE ,
+                   mmt.attribute3      AS BATCH_SIZE ,
+                   mtt.attribute4      AS ATTRIBUTE4 ,
+                   mmt.organization_id AS ORGANIZATION_ID
+                 FROM mtl_material_transactions mmt ,
+                   mtl_system_items_b msib ,
+                   mtl_transaction_types mtt ,
+                   hr_operating_units hou ,
+                   org_organization_definitions ood ,
+                   xle_entity_profiles xep ,
+                   mtl_parameters mp ,
+                   gmf_xla_extract_headers gxeh ,
+                   gmf_period_statuses gps ,
+                   (SELECT mmt_sub.TRANSACTION_REFERENCE AS TRANSACTION_REFERENCE
+                   FROM MTL_MATERIAL_TRANSACTIONS mmt_sub ,
+                     MTL_TRANSACTION_TYPES mtt_sub
+                   WHERE 1                                            =1
+                   AND mtt_sub.ATTRIBUTE4                             = 'BATCH COMP'
+                   AND mmt_sub.TRANSACTION_TYPE_ID                    = mtt_sub.TRANSACTION_TYPE_ID
+                   AND ((mmt_sub.TRANSACTION_DATE                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                   OR :P_DATE_FROM                                   IS NULL)
+                   AND ((mmt_sub.TRANSACTION_DATE                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                   OR :P_DATE_TO                                     IS NULL)
+                   --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                   --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                   AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                   AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                   )
+                        )
+                   )AA
+                 WHERE 1                          =1
+                 AND mmt.transaction_reference   IN(AA.transaction_reference)
+                 AND mp.process_enabled_flag      = 'Y'
+                 AND ((gxeh.valuation_cost_type   = 'STD')
+                 OR gxeh.header_id               IS NULL)
+                 AND mtt.attribute4              IN ('WIP ISSUE','WIP COMP')
+                 AND mmt.transaction_reference   IS NOT NULL
+                 AND mmt.inventory_item_id        = msib.inventory_item_id
+                 AND hou.default_legal_context_id = ood.legal_entity
+                 AND mmt.organization_id          = ood.organization_id
+                 AND mmt.organization_id          = msib.organization_id
+                 AND ood.legal_entity             = xep.legal_entity_id
+                 AND mtt.transaction_type_id      = mmt.transaction_type_id
+                 AND mp.organization_id           = mmt.organization_id
+                 AND gxeh.transaction_id (+)      = mmt.transaction_id
+                 AND gxeh.organization_id (+)     = mmt.organization_id
+                 AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                   ----------------------------------------------------------------------
+                   -- PARAMETERS ---
+                 AND (:P_BATCH_ID             IS NULL
+                 OR (:P_BATCH_ID              IS NOT NULL
+                 AND mmt.transaction_reference = :P_BATCH_ID))
+                 AND (mtt.attribute4           = :P_TRN_TYPE
+                 OR :P_TRN_TYPE               IS NULL)
+                 AND (msib.segment1            = :P_ITEM_NUM
+                 OR :P_ITEM_NUM               IS NULL)
+                 -------------
+                 UNION ALL
+                 -------------
+                 SELECT hou.name             AS OPERATING_UNIT ,
+                   ood.organization_code     AS ORGANIZATION_CODE ,
+                   xep.name                  AS LEGAL_ENTITY ,
+                   mmt.transaction_date      AS TRANSACTION_DATE,
+                   mmt.transaction_reference AS TRANSACTION_REFERENCE ,
+                   mmt.transaction_id        AS TRANSACTION_ID ,
+                   mmt.transaction_type_id   AS TRANSACTION_TYPE_ID ,
+                   mtt.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                   mmt.subinventory_code     AS SUBINVENTORY_CODE ,
+                   mmt.inventory_item_id     AS INVENTORY_ITEM_ID ,
+                   msib.segment1             AS ITEM_NUMBER ,
+                   mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                   msib.item_type            AS ITEM_TYPE ,
+                   mmt.transaction_uom       AS TRANSACTION_UOM ,
+                   (
+                   CASE
+                     WHEN mtt.attribute4 = 'WIP COMP'
+                     THEN mmt.transaction_quantity
+                       --ELSE 0
+                   END) AS TRANSACTION_QUANTITY ,
+                   -----------------Producing_Org
+                   (
+                   CASE
+                     WHEN mtt.ATTRIBUTE4 = 'WIP COMP'
+                     THEN mmt.Attribute5
+                       --ELSE 0
+                   END) AS PRODUCING_ORG
+                   ---------- Total Value
+                   ,
+                   (
+                   CASE
+                     WHEN mtt.attribute4 = 'WIP ISSUE'
+                     THEN (mta.base_transaction_value)
+                     WHEN mtt.attribute4 = 'WIP COMP'
+                     THEN (
+                       (SELECT NVL(SUM(item_cost),0)
+                       FROM
+                         (SELECT DISTINCT cicd.cost_element ,
+                           cicd.Resource_code ,
+                           cicd.usage_rate_or_amount ,
+                           cicd.item_cost ,
+                           msi_disc.segment1 ,
+                           mp_disc.organization_code ,
+                           cict.cost_type ,
+                           msi_disc.inventory_item_id ,
+                           mp_disc.organization_id
+                         FROM cst_item_cost_details_v cicd,
+                           mtl_system_items_b msi_disc,
+                           mtl_parameters mp_disc,
+                           cst_item_cost_type_v cict
+                         WHERE 1                    =1
+                         AND cicd.inventory_item_id = msi_disc.inventory_item_id
+                         AND cicd.organization_id   = msi_disc.organization_id
+                         AND cicd.organization_id   = mp_disc.organization_id
+                         AND cicd.inventory_item_id = cict.inventory_item_id
+                         AND cicd.organization_id   = cict.organization_id
+                         --Modified for discreet org cost validation Khristine Austero 11/3/2016
+                         AND UPPER(cict.cost_type)  = 'FROZEN' 
+                         AND cicd.cost_type_id      = cict.cost_type_id
+                           --AND   cicd.cost_element       IN ('Material','Material Overhead')
+                         AND cicd.level_type = 2
+                         ) disc_cost
+                       WHERE 1                         =1
+                       AND disc_cost.inventory_item_id = msib.inventory_item_id
+                       AND disc_cost.organization_id   = msib.organization_id
+                       AND disc_cost.organization_id   = mp.organization_id
+                       ) )
+                   END) AS TOTAL_VALUE
+                   -------
+                   --, 0 AS UNIT_COST
+                   ,
+                   mmt.reason_id       AS REASON_ID,
+                   mtt.attribute1      AS REASON_CODE ,
+                   mmt.attribute1      AS LOT_NUMBER ,
+                   mmt.attribute2      AS BATCH_COMPLETE ,
+                   mmt.attribute3      AS BATCH_SIZE ,
+                   mtt.attribute4      AS ATTRIBUTE4,
+                   mmt.organization_id AS ORGANIZATION_ID
+                 FROM mtl_material_transactions mmt ,
+                   mtl_system_items_b msib ,
+                   mtl_transaction_accounts mta ,
+                   mtl_transaction_types mtt ,
+                   hr_operating_units hou ,
+                   org_organization_definitions ood ,
+                   xle_entity_profiles xep ,
+                   mtl_parameters mp ,
+                   (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                     --, mtt_sub.TRANSACTION_TYPE_ID AS TRANSACTION_TYPE_ID
+                   FROM mtl_material_transactions mmt_sub ,
+                     mtl_transaction_types mtt_sub
+                   WHERE 1                                            =1
+                   AND mtt_sub.attribute4                             = 'BATCH COMP'
+                   AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                   AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                   OR :P_DATE_FROM                                   IS NULL)
+                   AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                   OR :P_DATE_TO                                     IS NULL)
+                   --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                   --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                   AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                   AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                   )
+                        )
+                   )AA
+                   --------------------------------------------------------------------
+                   --------------------------------------------------------------------
+                 WHERE 1                        =1
+                 AND mmt.transaction_reference IN(AA.transaction_reference)
+                   --AND    mmt.transaction_type_id = AA.transaction_type_id
+                 AND mp.process_enabled_flag        = 'N'
+                 AND mtt.attribute4                IN ('WIP ISSUE','WIP COMP')
+                 AND mmt.transaction_id             = mta.transaction_id (+)
+                 AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                 AND mmt.organization_id            = mta.organization_id (+)
+                 AND (mta.accounting_line_type NOT IN ('2')
+                 OR mta.transaction_id             IS NULL)
+                 AND mmt.inventory_item_id          = msib.inventory_item_id
+                 AND hou.default_legal_context_id   = ood.legal_entity
+                 AND mmt.organization_id            = ood.organization_id
+                 AND mmt.organization_id            = msib.organization_id
+                 AND ood.legal_entity               = xep.legal_entity_id
+                 AND mtt.transaction_type_id        = mmt.transaction_type_id
+                 AND mp.organization_id             = mmt.organization_id
+                 AND mmt.transaction_reference     IS NOT NULL
+                   ---------------------------------------------------------------
+                   ---------------------------------------------------------------
+                   -- PARAMETERS ---
+                 AND (:P_BATCH_ID             IS NULL
+                 OR (:P_BATCH_ID              IS NOT NULL
+                 AND mmt.transaction_reference = :P_BATCH_ID))
+                 AND (mtt.attribute4           = :P_TRN_TYPE
+                 OR :P_TRN_TYPE               IS NULL)
+                 AND (msib.segment1            = :P_ITEM_NUM
+                 OR :P_ITEM_NUM               IS NULL)
+                 ),
+                 wiwc_gcc_sql AS
+                 (SELECT TRANSACTION_ID,
+                   GCC
+                 FROM
+                   (SELECT mmt.transaction_id AS TRANSACTION_ID,
+                     (SELECT gcc.segment1
+                       ||'.'
+                       ||gcc.segment2
+                       ||'.'
+                       ||gcc.segment3
+                       ||'.'
+                       ||gcc.segment4
+                       ||'.'
+                       ||gcc.segment5
+                       ||'.'
+                       ||gcc.segment6
+                       ||'.'
+                       ||gcc.segment7
+                       ||'.'
+                       ||gcc. segment8
+                     FROM xla_distribution_links dl ,
+                       xla_ae_lines al ,
+                       xla_ae_headers ah ,
+                       gl_code_combinations gcc
+                     WHERE 1                             =1
+                     AND dl.source_distribution_id_num_1 = gxel.line_id
+                       --
+                       --AND ah.ae_header_id = gxel1.header_id
+                     AND ah.event_id                     = gxel.event_id
+                     AND gcc.segment4                    = 13921
+                     AND dl.source_distribution_type     = gxeh.entity_code
+                     AND al.ae_header_id                 = dl.ae_header_id
+                     AND ah.application_id               = dl.application_id
+                     AND al.ae_line_num                  = dl.ae_line_num
+                     AND ah.ae_header_id                 = al.ae_header_id
+                     AND gcc.code_combination_id         = al.code_combination_id
+                     AND al.accounting_class_code        = 'IVA'
+                     AND ah.accounting_entry_status_code = 'F'
+                     ) AS GCC
+                   FROM mtl_material_transactions mmt ,
+                     mtl_system_items_b msib ,
+                     mtl_transaction_types mtt ,
+                     hr_operating_units hou ,
+                     org_organization_definitions ood ,
+                     xle_entity_profiles xep ,
+                     mtl_parameters mp ,
+                     gmf_xla_extract_headers gxeh ,
+                     gmf_period_statuses gps ,
+                     gmf_xla_extract_lines gxel,
+                     (SELECT mmt_sub.TRANSACTION_REFERENCE AS TRANSACTION_REFERENCE
+                     FROM MTL_MATERIAL_TRANSACTIONS mmt_sub ,
+                       MTL_TRANSACTION_TYPES mtt_sub
+                     WHERE 1                                            =1
+                     AND mtt_sub.ATTRIBUTE4                             = 'BATCH COMP'
+                     AND mmt_sub.TRANSACTION_TYPE_ID                    = mtt_sub.TRANSACTION_TYPE_ID
+                     AND ((mmt_sub.TRANSACTION_DATE                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM                                   IS NULL)
+                     AND ((mmt_sub.TRANSACTION_DATE                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                                     IS NULL)
+                     --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                     --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                     AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                     AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                     )
+                          )
+                     )AA
+                   WHERE 1                          =1
+                   AND mmt.transaction_reference   IN(AA.transaction_reference)
+                   AND mp.process_enabled_flag      = 'Y'
+                   AND ((gxeh.valuation_cost_type   = 'STD')
+                   OR gxeh.header_id               IS NULL)
+                   AND mtt.attribute4              IN ('WIP ISSUE','WIP COMP')
+                   AND mmt.transaction_reference   IS NOT NULL
+                   AND mmt.inventory_item_id        = msib.inventory_item_id
+                   AND hou.default_legal_context_id = ood.legal_entity
+                   AND mmt.organization_id          = ood.organization_id
+                   AND mmt.organization_id          = msib.organization_id
+                   AND ood.legal_entity             = xep.legal_entity_id
+                   AND mtt.transaction_type_id      = mmt.transaction_type_id
+                   AND mp.organization_id           = mmt.organization_id
+                   AND gxeh.transaction_id (+)      = mmt.transaction_id
+                   AND gxeh.organization_id (+)     = mmt.organization_id
+                   AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                     ----------------------------------------------------------------------
+                   AND gxel.header_id      = gxeh.header_id       --
+                   AND mmt.organization_id = gxel.organization_id --
+                   AND gxeh.event_id       = gxel.event_id        --
+                     ----------------------------------------------------------------------
+                     -- PARAMETERS ---
+                   AND (:P_BATCH_ID             IS NULL
+                   OR (:P_BATCH_ID              IS NOT NULL
+                   AND mmt.transaction_reference = :P_BATCH_ID))
+                   AND (mtt.attribute4           = :P_TRN_TYPE
+                   OR :P_TRN_TYPE               IS NULL)
+                   AND (msib.segment1            = :P_ITEM_NUM
+                   OR :P_ITEM_NUM               IS NULL)
+                   ---------------------
+                   UNION ALL
+                   ---------------------
+                   SELECT mmt.transaction_id AS TRANSACTION_ID ,
+                     -----------------------------------------------------
+                     (
+                     SELECT gcc.segment1
+                       ||'.'
+                       ||gcc.segment2
+                       ||'.'
+                       ||gcc.segment3
+                       ||'.'
+                       ||gcc.segment4
+                       ||'.'
+                       ||gcc.segment5
+                       ||'.'
+                       ||gcc.segment6
+                       ||'.'
+                       ||gcc.segment7
+                       ||'.'
+                       ||gcc. segment8
+                     FROM xla_distribution_links b ,
+                       xla_ae_lines l ,
+                       gl_code_combinations gcc ,
+                       xla_ae_headers xah
+                     WHERE 1                              =1
+                     AND b.source_distribution_type       = 'MTL_TRANSACTION_ACCOUNTS'
+                     AND b.application_id                 = l.application_id
+                     AND b.source_distribution_id_num_1   = mta.inv_sub_ledger_id
+                     AND xah.ae_header_id                 = l.ae_header_id
+                     AND gcc.code_combination_id          = l.code_combination_id
+                     AND l.ae_header_id                   = b.ae_header_id
+                     AND l.ae_line_num                    = b.ae_line_num
+                     AND xah.accounting_entry_status_code = 'F'
+                     AND l.accounting_class_code          = 'OFFSET'
+                     AND gcc.segment4                     = 13921
+                     )
+                     -------------------------------------------------------
+                     AS GCC
+                   FROM mtl_material_transactions mmt ,
+                     mtl_system_items_b msib ,
+                     mtl_transaction_accounts mta ,
+                     mtl_transaction_types mtt ,
+                     hr_operating_units hou ,
+                     org_organization_definitions ood ,
+                     xle_entity_profiles xep ,
+                     mtl_parameters mp ,
+                     (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                       --, mtt_sub.TRANSACTION_TYPE_ID AS TRANSACTION_TYPE_ID
+                     FROM mtl_material_transactions mmt_sub ,
+                       mtl_transaction_types mtt_sub
+                     WHERE 1                                            =1
+                     AND mtt_sub.attribute4                             = 'BATCH COMP'
+                     AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                     AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM                                   IS NULL)
+                     AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                                     IS NULL)
+                     --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                     --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                     AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                     AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                     )
+                          )
+                     )AA
+                   WHERE 1                        =1
+                   AND mmt.transaction_reference IN(AA.transaction_reference)
+                     --AND    mmt.transaction_type_id = AA.transaction_type_id
+                   AND mp.process_enabled_flag        = 'N'
+                   AND mtt.attribute4                IN ('WIP ISSUE','WIP COMP')
+                   AND mmt.transaction_id             = mta.transaction_id (+)
+                   AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                   AND mmt.organization_id            = mta.organization_id (+)
+                   AND (mta.accounting_line_type NOT IN ('2')
+                   OR mta.transaction_id             IS NULL)
+                   AND mmt.inventory_item_id          = msib.inventory_item_id
+                   AND hou.default_legal_context_id   = ood.legal_entity
+                   AND mmt.organization_id            = ood.organization_id
+                   AND mmt.organization_id            = msib.organization_id
+                   AND ood.legal_entity               = xep.legal_entity_id
+                   AND mtt.transaction_type_id        = mmt.transaction_type_id
+                   AND mp.organization_id             = mmt.organization_id
+                   AND mmt.transaction_reference     IS NOT NULL
+                     -- PARAMETERS ---
+                   AND (:P_BATCH_ID             IS NULL
+                   OR (:P_BATCH_ID              IS NOT NULL
+                   AND mmt.transaction_reference = :P_BATCH_ID))
+                   AND (mtt.attribute4           = :P_TRN_TYPE
+                   OR :P_TRN_TYPE               IS NULL)
+                   AND (msib.segment1            = :P_ITEM_NUM
+                   OR :P_ITEM_NUM               IS NULL)
+                   ) wc_gcc1
+                 WHERE wc_gcc1.GCC IS NOT NULL
+                 ) ,
+                 bc_sql AS
+                 (
+                 -------BC--------
+                 SELECT ORGANIZATION_CODE ,
+                   TRANSACTION_DATE ,
+                   TRANSACTION_REFERENCE ,
+                   TRANSACTION_TYPE_NAME ,
+                   INVENTORY_ITEM_ID ,
+                   ITEM_NUMBER ,
+                   BATCH_ID_NUMBER ,
+                   TRANSACTION_UOM ,
+                   SUM(TRANSACTION_QUANTITY) AS TRANSACTION_QUANTITY ,
+                   UNIT_COST ,
+                   BATCH_COMPLETE ,
+                   SUM(BATCH_SIZE) AS BATCH_SIZE ,
+                   ATTRIBUTE4
+                 FROM
+                   ( SELECT DISTINCT A.ORGANIZATION_CODE ,
+                     A.TRANSACTION_DATE ,
+                     A.TRANSACTION_ID ,
+                     A.TRANSACTION_REFERENCE ,
+                     A.TRANSACTION_TYPE_NAME ,
+                     A.INVENTORY_ITEM_ID ,
+                     A.ITEM_NUMBER ,
+                     A.BATCH_ID_NUMBER ,
+                     A.TRANSACTION_UOM ,
+                     A.TRANSACTION_QUANTITY ,
+                     SUM(A.UNIT_COST) AS UNIT_COST ,
+                     A.BATCH_COMPLETE ,
+                     A.BATCH_SIZE ,
+                     A.ATTRIBUTE4
+                   FROM
+                     (SELECT DISTINCT hou.name   AS OPERATING_UNIT ,
+                       ood.organization_code     AS ORGANIZATION_CODE,
+                       xep.name                  AS LEGAL_ENTITY ,
+                       mmt.transaction_date      AS TRANSACTION_DATE ,
+                       mmt.transaction_reference AS TRANSACTION_REFERENCE ,
+                       mmt.transaction_id        AS TRANSACTION_ID ,
+                       mmt.transaction_type_id   AS TRANSACTION_TYPE_ID ,
+                       mtt.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                       mmt.subinventory_code     AS SUBINVENTORY_CODE ,
+                       mmt.inventory_item_id     AS INVENTORY_ITEM_ID ,
+                       msib.segment1             AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       msib.item_type            AS ITEM_TYPE,
+                       mmt.transaction_uom       AS TRANSACTION_UOM,
+                       mmt.transaction_quantity  AS TRANSACTION_QUANTITY,
+                       (SELECT NVL(SUM(cmpnt_cost),0)
+                       FROM
+                         (SELECT DISTINCT mp_proc.organization_id ,
+                           msi_proc.segment1 ,
+                           ccd.inventory_item_id ,
+                           ccd.cmpnt_cost ,
+                           ccm.cost_cmpntcls_code ,
+                           ccd.period_id
+                         FROM cm_cmpt_dtl ccd,
+                           cm_cmpt_mst ccm ,
+                           mtl_system_items_b msi_proc,
+                           mtl_parameters mp_proc
+                         WHERE 1                   =1
+                         AND ccd.inventory_item_id = msi_proc.inventory_item_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                         AND ccd.cost_cmpntcls_id  = ccm.cost_cmpntcls_id
+                         AND ccd.organization_id   = mp_proc.organization_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                           --AND ccm.cost_cmpntcls_code IN ('RMW','MAT_OH')
+                         AND ccd.delete_mark = 0
+                         AND ccd.cost_level  = 1
+                         ) proc_cost
+                       WHERE 1                         =1
+                       AND proc_cost.period_id         = gps.period_id
+                       AND mmt.transaction_date       >= gps.start_date
+                       AND mmt.transaction_date        < gps.end_date + 1
+                       AND proc_cost.inventory_item_id = msib.inventory_item_id
+                       AND proc_cost.organization_id   = msib.organization_id
+                       AND proc_cost.organization_id   = mp.organization_id
+                       ) AS UNIT_COST
+                       ---------- Total Value
+                       ,
+                       0 AS TOTAL_VALUE
+                       -------
+                       ,
+                       mmt.reason_id        AS REASON_ID ,
+                       mtt.attribute1       AS REASON_CODE ,
+                       mmt.attribute1       AS LOT_NUMBER ,
+                       mmt.attribute2       AS BATCH_COMPLETE ,
+                       mmt.attribute3       AS BATCH_SIZE ,
+                       mtt.attribute4       AS ATTRIBUTE4,
+                       mmt.last_update_date AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh
+                       --, gmf_xla_extract_lines gxel
+                       ,
+                       gmf_period_statuses gps ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE ,
+                         mmt_sub.inventory_item_id           AS INVENTORY_ITEM_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                          =1
+                     AND mmt.transaction_reference   IN(AA.transaction_reference)
+                     AND mmt.inventory_item_id        = AA.inventory_item_id
+                     AND mp.process_enabled_flag      = 'Y'
+                     AND ((gxeh.valuation_cost_type   = 'STD')
+                     OR gxeh.header_id               IS NULL)
+                     AND mtt.attribute4              IN ('BATCH COMP')
+                     AND mmt.transaction_reference   IS NOT NULL
+                     AND mmt.inventory_item_id        = msib.inventory_item_id
+                     AND hou.default_legal_context_id = ood.legal_entity
+                     AND mmt.organization_id          = ood.organization_id
+                     AND mmt.organization_id          = msib.organization_id
+                     AND ood.legal_entity             = xep.legal_entity_id
+                     AND mtt.transaction_type_id      = mmt.transaction_type_id
+                     AND mp.organization_id           = mmt.organization_id
+                     AND gxeh.transaction_id (+)      = mmt.transaction_id
+                     AND gxeh.organization_id (+)     = mmt.organization_id
+                     AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     UNION ALL
+                     SELECT DISTINCT hou.name    AS OPERATING_UNIT ,
+                       ood.organization_code     AS ORGANIZATION_CODE,
+                       xep.name                  AS LEGAL_ENTITY ,
+                       mmt.transaction_date      AS TRANSACTION_DATE ,
+                       mmt.transaction_reference AS TRANSACTION_REFERENCE ,
+                       mmt.transaction_id        AS TRANSACTION_ID ,
+                       mmt.transaction_type_id   AS TRANSACTION_TYPE_ID ,
+                       mtt.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                       mmt.subinventory_code     AS SUBINVENTORY_CODE
+                       ---------------
+                       ,
+                       mmt.inventory_item_id     AS INVENTORY_ITEM_ID ,
+                       msib.segment1             AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       msib.item_type            AS ITEM_TYPE,
+                       mmt.transaction_uom       AS TRANSACTION_UOM,
+                       mmt.transaction_quantity  AS TRANSACTION_QUANTITY,
+                       (SELECT NVL(SUM(item_cost),0)
+                       FROM
+                         (SELECT DISTINCT cicd.cost_element ,
+                           cicd.Resource_code ,
+                           cicd.usage_rate_or_amount ,
+                           cicd.item_cost ,
+                           msi_disc.segment1 ,
+                           mp_disc.organization_code ,
+                           cict.cost_type ,
+                           msi_disc.inventory_item_id ,
+                           mp_disc.organization_id
+                         FROM cst_item_cost_details_v cicd,
+                           mtl_system_items_b msi_disc,
+                           mtl_parameters mp_disc,
+                           cst_item_cost_type_v cict
+                         WHERE 1                    =1
+                         AND cicd.inventory_item_id = msi_disc.inventory_item_id
+                         AND cicd.organization_id   = msi_disc.organization_id
+                         AND cicd.organization_id   = mp_disc.organization_id
+                         AND cicd.inventory_item_id = cict.inventory_item_id
+                         AND cicd.organization_id   = cict.organization_id
+                         --Modified for discreet org cost validation Khristine Austero 11/3/2016
+                         AND UPPER(cict.cost_type)  = 'FROZEN' 
+                         AND cicd.cost_type_id      = cict.cost_type_id
+                           --AND   cicd.cost_element IN ('Material','Material Overhead')
+                         AND cicd.level_type = 2
+                         ) disc_cost
+                       WHERE 1                         =1
+                       AND disc_cost.inventory_item_id = msib.inventory_item_id
+                       AND disc_cost.organization_id   = msib.organization_id
+                       AND disc_cost.organization_id   = mp.organization_id
+                       ) AS UNIT_COST
+                       ---------- Total Value
+                       --,mta.BASE_TRANSACTION_VALUE
+                       ,
+                       0 AS TOTAL_VALUE
+                       -------
+                       ,
+                       mmt.reason_id        AS REASON_ID,
+                       mtt.attribute1       AS REASON_CODE ,
+                       mmt.attribute1       AS LOT_NUMBER ,
+                       mmt.attribute2       AS BATCH_COMPLETE ,
+                       mmt.attribute3       AS BATCH_SIZE ,
+                       mtt.attribute4       AS ATTRIBUTE4,
+                       mmt.last_update_date AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_accounts mta ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE ,
+                         mmt_sub.inventory_item_id           AS INVENTORY_ITEM_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                            =1
+                     AND mmt.transaction_reference     IN(AA.transaction_reference)
+                     AND mmt.inventory_item_id          = AA.inventory_item_id
+                     AND mp.process_enabled_flag        = 'N'
+                     AND mtt.attribute4                IN ('BATCH COMP')
+                     AND mmt.transaction_id             = mta.transaction_id (+)
+                     AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                     AND mmt.organization_id            = mta.organization_id (+)
+                     AND (mta.accounting_line_type NOT IN ('2')
+                     OR mta.transaction_id             IS NULL)
+                     AND mmt.inventory_item_id          = msib.inventory_item_id
+                     AND hou.default_legal_context_id   = ood.legal_entity
+                     AND mmt.organization_id            = ood.organization_id
+                     AND mmt.organization_id            = msib.organization_id
+                     AND ood.legal_entity               = xep.legal_entity_id
+                     AND mtt.transaction_type_id        = mmt.transaction_type_id
+                     AND mp.organization_id             = mmt.organization_id
+                     AND mmt.transaction_reference     IS NOT NULL
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     )A ,
+                     (SELECT msib.segment1       AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       MAX(mmt.last_update_date) AS LAST_UPDATE_DATE ,
+                       mmt.attribute1            AS LOT_NUMBER
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh
+                       --, gmf_xla_extract_lines gxel
+                       ,
+                       gmf_period_statuses gps ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE ,
+                         mmt_sub.inventory_item_id           AS INVENTORY_ITEM_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                          =1
+                     AND mmt.transaction_reference   IN(AA.transaction_reference)
+                     AND mmt.inventory_item_id        = AA.inventory_item_id
+                     AND mp.process_enabled_flag      = 'Y'
+                     AND ((gxeh.valuation_cost_type   = 'STD')
+                     OR gxeh.header_id               IS NULL)
+                     AND mtt.attribute4              IN ('BATCH COMP')
+                     AND mmt.transaction_reference   IS NOT NULL
+                     AND mmt.inventory_item_id        = msib.inventory_item_id
+                     AND hou.default_legal_context_id = ood.legal_entity
+                     AND mmt.organization_id          = ood.organization_id
+                     AND mmt.organization_id          = msib.organization_id
+                     AND ood.legal_entity             = xep.legal_entity_id
+                     AND mtt.transaction_type_id      = mmt.transaction_type_id
+                     AND mp.organization_id           = mmt.organization_id
+                     AND gxeh.transaction_id (+)      = mmt.transaction_id
+                     AND gxeh.organization_id (+)     = mmt.organization_id
+                     AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                       -- AND    msib.segment1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     GROUP BY msib.SEGMENT1,
+                       mmt.TRANSACTION_REFERENCE,
+                       mmt.attribute1
+                     UNION ALL
+                     SELECT msib.segment1        AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       MAX(mmt.last_update_date) AS LAST_UPDATE_DATE ,
+                       mmt.attribute1            AS LOT_NUMBER
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_accounts mta ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE ,
+                         mmt_sub.inventory_item_id           AS INVENTORY_ITEM_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                            =1
+                     AND mmt.transaction_reference     IN(AA.transaction_reference)
+                     AND mmt.inventory_item_id          = AA.inventory_item_id
+                     AND mp.process_enabled_flag        = 'N'
+                     AND mtt.attribute4                IN ('BATCH COMP')
+                     AND mmt.transaction_id             = mta.transaction_id (+)
+                     AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                     AND mmt.organization_id            = mta.organization_id (+)
+                     AND (mta.accounting_line_type NOT IN ('2')
+                     OR mta.transaction_id             IS NULL)
+                     AND mmt.inventory_item_id          = msib.inventory_item_id
+                     AND hou.default_legal_context_id   = ood.legal_entity
+                     AND mmt.organization_id            = ood.organization_id
+                     AND mmt.organization_id            = msib.organization_id
+                     AND ood.legal_entity               = xep.legal_entity_id
+                     AND mtt.transaction_type_id        = mmt.transaction_type_id
+                     AND mp.organization_id             = mmt.organization_id
+                     AND mmt.transaction_reference     IS NOT NULL
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     GROUP BY msib.SEGMENT1,
+                       mmt.TRANSACTION_REFERENCE,
+                       mmt.ATTRIBUTE1
+                     )B
+                   WHERE A.BATCH_ID_NUMBER = B.BATCH_ID_NUMBER
+                   AND A.ITEM_NUMBER       = B.ITEM_NUMBER
+                   AND A.LAST_UPDATE_DATE  = B.LAST_UPDATE_DATE
+                   AND A.LOT_NUMBER        = B.LOT_NUMBER
+                     -- )
+                   GROUP BY A.ORGANIZATION_CODE,
+                     A.TRANSACTION_DATE,
+                     A.TRANSACTION_ID,
+                     A.TRANSACTION_REFERENCE,
+                     A.TRANSACTION_TYPE_NAME,
+                     A.INVENTORY_ITEM_ID,
+                     A.ITEM_NUMBER,
+                     A.BATCH_ID_NUMBER,
+                     A.TRANSACTION_UOM,
+                     A.TRANSACTION_QUANTITY,
+                     A.BATCH_COMPLETE,
+                     A.BATCH_SIZE,
+                     A.ATTRIBUTE4
+                   )
+                 GROUP BY ORGANIZATION_CODE ,
+                   TRANSACTION_DATE ,
+                   TRANSACTION_REFERENCE ,
+                   TRANSACTION_TYPE_NAME ,
+                   INVENTORY_ITEM_ID ,
+                   ITEM_NUMBER ,
+                   BATCH_ID_NUMBER ,
+                   TRANSACTION_UOM ,
+                   UNIT_COST ,
+                   BATCH_COMPLETE ,
+                   ATTRIBUTE4
+                 ),
+                 abc_sql AS
+                 (SELECT BATCH_ID_NUMBER                               AS BATCH_ID_NUMBER ,
+                   SUM(TRANSACTION_QUANTITY)                           AS TRANSACTION_QUANTITY ,
+                   SUM((BATCH_SIZE - TRANSACTION_QUANTITY)* UNIT_COST) AS TTL_YLD_VAR ,
+                   SUM(BATCH_SIZE)                                     AS TTL_BS
+                 FROM
+                   (SELECT A.BATCH_ID_NUMBER ,
+                     A.TRANSACTION_QUANTITY ,
+                     A.BATCH_SIZE ,
+                     SUM(A.UNIT_COST) AS UNIT_COST
+                   FROM
+                     ( SELECT DISTINCT hou.name  AS OPERATING_UNIT ,
+                       ood.organization_code     AS ORGANIZATION_CODE,
+                       xep.name                  AS LEGAL_ENTITY ,
+                       mmt.transaction_date      AS TRANSACTION_DATE ,
+                       mmt.transaction_reference AS TRANSACTION_REFERENCE ,
+                       mmt.transaction_id        AS TRANSACTION_ID ,
+                       mmt.transaction_type_id   AS TRANSACTION_TYPE_ID ,
+                       mtt.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                       mmt.subinventory_code     AS SUBINVENTORY_CODE ,
+                       mmt.inventory_item_id     AS INVENTORY_ITEM_ID ,
+                       msib.segment1             AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       msib.item_type            AS ITEM_TYPE,
+                       mmt.transaction_uom       AS TRANSACTION_UOM,
+                       mmt.transaction_quantity  AS TRANSACTION_QUANTITY,
+                       (SELECT NVL(SUM(cmpnt_cost),0)
+                       FROM
+                         (SELECT DISTINCT mp_proc.organization_id ,
+                           msi_proc.segment1 ,
+                           ccd.inventory_item_id ,
+                           ccd.cmpnt_cost ,
+                           ccm.cost_cmpntcls_code ,
+                           ccd.period_id
+                         FROM cm_cmpt_dtl ccd,
+                           cm_cmpt_mst ccm ,
+                           mtl_system_items_b msi_proc,
+                           mtl_parameters mp_proc
+                         WHERE 1                   =1
+                         AND ccd.inventory_item_id = msi_proc.inventory_item_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                         AND ccd.cost_cmpntcls_id  = ccm.cost_cmpntcls_id
+                         AND ccd.organization_id   = mp_proc.organization_id
+                         AND ccd.organization_id   = msi_proc.organization_id
+                           --AND ccm.cost_cmpntcls_code IN ('RMW','MAT_OH')
+                         AND ccd.delete_mark = 0
+                         AND ccd.cost_level  = 1
+                         ) proc_cost
+                       WHERE 1                         =1
+                       AND proc_cost.period_id         = gps.period_id
+                       AND mmt.transaction_date       >= gps.start_date
+                       AND mmt.transaction_date        < gps.end_date + 1
+                       AND proc_cost.inventory_item_id = msib.inventory_item_id
+                       AND proc_cost.organization_id   = msib.organization_id
+                       AND proc_cost.organization_id   = mp.organization_id
+                       ) AS UNIT_COST
+                       ---------- Total Value
+                       ,
+                       0 AS TOTAL_VALUE
+                       -------
+                       ,
+                       mmt.reason_id        AS REASON_ID,
+                       mtt.attribute1       AS REASON_CODE ,
+                       mmt.attribute1       AS LOT_NUMBER ,
+                       mmt.attribute2       AS BATCH_COMPLETE ,
+                       mmt.attribute3       AS BATCH_SIZE ,
+                       mtt.attribute4       AS ATTRIBUTE4 ,
+                       mmt.last_update_date AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh
+                       --, gmf_xla_extract_lines gxel
+                       ,
+                       gmf_period_statuses gps ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                         --, mtt_sub.TRANSACTION_TYPE_ID AS TRANSACTION_TYPE_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                        =1
+                     AND mmt.transaction_reference IN(AA.transaction_reference)
+                       --AND    mmt.transaction_type_id = AA.transaction_type_id
+                     AND mp.process_enabled_flag      = 'Y'
+                     AND ((gxeh.valuation_cost_type   = 'STD')
+                     OR gxeh.header_id               IS NULL)
+                     AND mtt.attribute4              IN ('BATCH COMP')
+                     AND mmt.transaction_reference   IS NOT NULL
+                     AND mmt.inventory_item_id        = msib.inventory_item_id
+                     AND hou.default_legal_context_id = ood.legal_entity
+                     AND mmt.organization_id          = ood.organization_id
+                     AND mmt.organization_id          = msib.organization_id
+                     AND ood.legal_entity             = xep.legal_entity_id
+                     AND mtt.transaction_type_id      = mmt.transaction_type_id
+                     AND mp.organization_id           = mmt.organization_id
+                     AND gxeh.transaction_id (+)      = mmt.transaction_id
+                     AND gxeh.organization_id (+)     = mmt.organization_id
+                     AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     UNION ALL
+                     SELECT DISTINCT hou.name    AS OPERATING_UNIT ,
+                       ood.organization_code     AS ORGANIZATION_CODE ,
+                       xep.name                  AS LEGAL_ENTITY ,
+                       mmt.transaction_date      AS TRANSACTION_DATE ,
+                       mmt.transaction_reference AS TRANSACTION_REFERENCE ,
+                       mmt.transaction_id        AS TRANSACTION_ID ,
+                       mmt.transaction_type_id   AS TRANSACTION_TYPE_ID ,
+                       mtt.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                       mmt.subinventory_code     AS SUBINVENTORY_CODE ,
+                       mmt.inventory_item_id     AS INVENTORY_ITEM_ID,
+                       msib.segment1             AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       msib.item_type            AS ITEM_TYPE,
+                       mmt.transaction_uom       AS TRANSACTION_UOM,
+                       mmt.transaction_quantity  AS TRANSACTION_QUANTITY,
+                       (SELECT NVL(SUM(item_cost),0)
+                       FROM
+                         (SELECT DISTINCT cicd.cost_element ,
+                           cicd.Resource_code ,
+                           cicd.usage_rate_or_amount ,
+                           cicd.item_cost ,
+                           msi_disc.segment1 ,
+                           mp_disc.organization_code ,
+                           cict.cost_type ,
+                           msi_disc.inventory_item_id ,
+                           mp_disc.organization_id
+                         FROM cst_item_cost_details_v cicd,
+                           mtl_system_items_b msi_disc,
+                           mtl_parameters mp_disc,
+                           cst_item_cost_type_v cict
+                         WHERE 1                    =1
+                         AND cicd.inventory_item_id = msi_disc.inventory_item_id
+                         AND cicd.organization_id   = msi_disc.organization_id
+                         AND cicd.organization_id   = mp_disc.organization_id
+                         AND cicd.inventory_item_id = cict.inventory_item_id
+                         AND cicd.organization_id   = cict.organization_id
+                         --Modified for discreet org cost validation Khristine Austero 11/3/2016
+                         AND UPPER(cict.cost_type)  = 'FROZEN' 
+                         AND cicd.cost_type_id      = cict.cost_type_id
+                           --AND   cicd.cost_element IN ('Material','Material Overhead')
+                         AND cicd.level_type = 2
+                         ) disc_cost
+                       WHERE 1                         =1
+                       AND disc_cost.inventory_item_id = msib.inventory_item_id
+                       AND disc_cost.organization_id   = msib.organization_id
+                       AND disc_cost.organization_id   = mp.organization_id
+                       ) AS UNIT_COST
+                       ---------- Total Value
+                       --,mta.BASE_TRANSACTION_VALUE
+                       ,
+                       0 AS TOTAL_VALUE
+                       -------
+                       ,
+                       mmt.reason_id        AS REASON_ID,
+                       mtt.attribute1       AS REASON_CODE ,
+                       mmt.attribute1       AS LOT_NUMBER ,
+                       mmt.attribute2       AS BATCH_COMPLETE ,
+                       mmt.attribute3       AS BATCH_SIZE ,
+                       mtt.attribute4       AS ATTRIBUTE4,
+                       mmt.last_update_date AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_accounts mta ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                         --, mtt_sub.transaction_type_id          AS TRANSACTION_TYPE_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                        =1
+                     AND mmt.transaction_reference IN(AA.transaction_reference)
+                       --AND    mmt.TRANSACTION_TYPE_ID = AA.TRANSACTION_TYPE_ID
+                     AND mp.process_enabled_flag        = 'N'
+                     AND mtt.attribute4                IN ('BATCH COMP')
+                     AND mmt.transaction_id             = mta.transaction_id (+)
+                     AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                     AND mmt.organization_id            = mta.organization_id (+)
+                     AND (mta.accounting_line_type NOT IN ('2')
+                     OR mta.transaction_id             IS NULL)
+                     AND mmt.inventory_item_id          = msib.inventory_item_id
+                     AND hou.default_legal_context_id   = ood.legal_entity
+                     AND mmt.organization_id            = ood.organization_id
+                     AND mmt.organization_id            = msib.organization_id
+                     AND ood.legal_entity               = xep.legal_entity_id
+                     AND mtt.transaction_type_id        = mmt.transaction_type_id
+                     AND mp.organization_id             = mmt.organization_id
+                     AND mmt.transaction_reference     IS NOT NULL
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     )A ,
+                     (SELECT msib.segment1       AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       MAX(mmt.last_update_date) AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh
+                       --, gmf_xla_extract_lines gxel
+                       ,
+                       gmf_period_statuses gps ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                         --, mtt_sub.transaction_type_id AS TRANSACTION_TYPE_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                        =1
+                     AND mmt.transaction_reference IN(AA.transaction_reference)
+                       --AND    mmt.TRANSACTION_TYPE_ID = AA.TRANSACTION_TYPE_ID
+                     AND mp.process_enabled_flag      = 'Y'
+                     AND ((gxeh.valuation_cost_type   = 'STD')
+                     OR gxeh.header_id               IS NULL)
+                     AND mtt.attribute4              IN ('BATCH COMP')
+                     AND mmt.transaction_reference   IS NOT NULL
+                     AND mmt.inventory_item_id        = msib.inventory_item_id
+                     AND hou.default_legal_context_id = ood.legal_entity
+                     AND mmt.organization_id          = ood.organization_id
+                     AND mmt.organization_id          = msib.organization_id
+                     AND ood.legal_entity             = xep.legal_entity_id
+                     AND mtt.transaction_type_id      = mmt.transaction_type_id
+                     AND mp.organization_id           = mmt.organization_id
+                     AND gxeh.transaction_id (+)      = mmt.transaction_id
+                     AND gxeh.organization_id (+)     = mmt.organization_id
+                     AND gxeh.inventory_item_id (+)   = mmt.inventory_item_id
+                       -- AND    msib.SEGMENT1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     GROUP BY msib.SEGMENT1,
+                       mmt.TRANSACTION_REFERENCE
+                     UNION ALL
+                     SELECT msib.segment1        AS ITEM_NUMBER ,
+                       mmt.transaction_reference AS BATCH_ID_NUMBER ,
+                       MAX(mmt.last_update_date) AS LAST_UPDATE_DATE
+                     FROM mtl_material_transactions mmt ,
+                       mtl_system_items_b msib ,
+                       mtl_transaction_accounts mta ,
+                       mtl_transaction_types mtt ,
+                       hr_operating_units hou ,
+                       org_organization_definitions ood ,
+                       xle_entity_profiles xep ,
+                       mtl_parameters mp ,
+                       (SELECT mmt_sub.transaction_reference AS TRANSACTION_REFERENCE
+                         --, mtt_sub.transaction_type_id AS TRANSACTION_TYPE_ID
+                       FROM mtl_material_transactions mmt_sub ,
+                         mtl_transaction_types mtt_sub
+                       WHERE 1                                            =1
+                       AND mtt_sub.attribute4                             = 'BATCH COMP'
+                       AND mmt_sub.transaction_type_id                    = mtt_sub.transaction_type_id
+                       AND ((mmt_sub.transaction_date                    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                       OR :P_DATE_FROM                                   IS NULL)
+                       AND ((mmt_sub.transaction_date                     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                       OR :P_DATE_TO                                     IS NULL)
+                       --AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL')               = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT)
+                       --OR DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT) IS NULL)
+                       AND (:P_BATCH_CMPLT   IS NULL OR (:P_BATCH_CMPLT   IS NOT NULL  
+                                                       AND (NVL(mmt_sub.ATTRIBUTE2, 'NULL') = DECODE(:P_BATCH_CMPLT,'N','NULL',:P_BATCH_CMPLT))
+                                                       )
+                            )
+                       )AA
+                     WHERE 1                        =1
+                     AND mmt.transaction_reference IN(AA.transaction_reference)
+                       --AND    mmt.transaction_type_id = AA.transaction_type_id
+                     AND mp.process_enabled_flag        = 'N'
+                     AND mtt.attribute4                IN ('BATCH COMP')
+                     AND mmt.transaction_id             = mta.transaction_id (+)
+                     AND mmt.inventory_item_id          = mta.inventory_item_id(+)
+                     AND mmt.organization_id            = mta.organization_id (+)
+                     AND (mta.accounting_line_type NOT IN ('2')
+                     OR mta.transaction_id             IS NULL)
+                     AND mmt.inventory_item_id          = msib.inventory_item_id
+                     AND hou.default_legal_context_id   = ood.legal_entity
+                     AND mmt.organization_id            = ood.organization_id
+                     AND mmt.organization_id            = msib.organization_id
+                     AND ood.legal_entity               = xep.legal_entity_id
+                     AND mtt.transaction_type_id        = mmt.transaction_type_id
+                     AND mp.organization_id             = mmt.organization_id
+                     AND mmt.transaction_reference     IS NOT NULL
+                       -- AND    msib.segment1 = '100018028'
+                       -- PARAMETERS ---
+                     AND ((mmt.transaction_date    >= TO_DATE(:P_DATE_FROM,'DD-MON-YY'))
+                     OR :P_DATE_FROM               IS NULL)
+                     AND ((mmt.transaction_date     < (TO_DATE(:P_DATE_TO,'DD-MON-YY') + 1))
+                     OR :P_DATE_TO                 IS NULL)
+                     AND (mmt.transaction_reference = :P_BATCH_ID
+                     OR :P_BATCH_ID                IS NULL)
+                     AND (mtt.attribute4            = :P_TRN_TYPE
+                     OR :P_TRN_TYPE                IS NULL)
+                     AND (msib.segment1             = :P_ITEM_NUM
+                     OR :P_ITEM_NUM                IS NULL)
+                     GROUP BY msib.SEGMENT1,
+                       mmt.TRANSACTION_REFERENCE
+                     )B
+                   WHERE A.BATCH_ID_NUMBER = B.BATCH_ID_NUMBER
+                   AND A.ITEM_NUMBER       = B.ITEM_NUMBER
+                   AND A.LAST_UPDATE_DATE  = B.LAST_UPDATE_DATE
+                   GROUP BY A.BATCH_ID_NUMBER,
+                     A.TRANSACTION_QUANTITY,
+                     A.BATCH_SIZE
+                   )
+                 GROUP BY BATCH_ID_NUMBER
+                 )
+               -----------START--------------
+               SELECT INDEX_ID ,
+                 CASE
+                   WHEN TRANSACTION_DATE IS NOT NULL
+                   THEN TO_CHAR(TRANSACTION_DATE,'DD-Mon-YY')
+                   ELSE NULL
+                 END AS TRANSACTION_DATE ,
+                 TRANSACTION_TYPE_NAME ,
+                 BATCH_ID_NUMBER ,
+                 ORGANIZATION_CODE AS ORGANIZATION_CODE ,
+                 ITEM_NUMBER ,
+                 TRANSACTION_UOM ,
+                 QUANTITY_COMPLETED ,
+                 QUANTITY_YIELD ,
+                 THEORETICAL_QUANTITY ,
+                 TRANSACTION_AMOUNT ,
+                 BATCH_COMPLETE ,
+                 DECODE(UNIT_COST, NULL, NULL, '$'
+                 ||TRIM(TO_CHAR(UNIT_COST,'999G999G999G999D00000'))) UNIT_COST ,
+                 DECODE(TOTAL_DIFFERENCE, NULL, NULL, 1, '1', 2, '2', '$'
+                 ||TRIM(TO_CHAR(TOTAL_DIFFERENCE,'999G999G999G999D00'))) TOTAL_DIFFERENCE ,
+                 DECODE(YIELD_VAR, NULL, NULL, 1, '1', 2, '2', '$'
+                 ||TRIM(TO_CHAR(YIELD_VAR,'999G999G999G999D00'))) YIELD_VAR ,
+                 DECODE(USAGE_VAR, NULL, NULL, 1, '1', 2, '2', '$'
+                 ||TRIM(TO_CHAR(USAGE_VAR,'999G999G999G999D00'))) USAGE_VAR ,
+                 ERROR_CODE ,
+                 PRODUCING_ORG ,
+                 GCC
+               FROM
+                 (SELECT INDEX_ID ,
+                   TRANSACTION_ID ,
+                   TRANSACTION_DATE ,
+                   TRANSACTION_TYPE_NAME ,
+                   BATCH_ID_NUMBER ,
+                   ORGANIZATION_CODE ,
+                   ITEM_NUMBER ,
+                   TRANSACTION_UOM ,
+                   QUANTITY_COMPLETED ,
+                   QUANTITY_YIELD ,
+                   THEORETICAL_QUANTITY ,
+                   SUM(TRANSACTION_AMOUNT) TRANSACTION_AMOUNT ,
+                   BATCH_COMPLETE ,
+                   UNIT_COST ,
+                   TOTAL_DIFFERENCE ,
+                   YIELD_VAR ,
+                   USAGE_VAR ,
+                   ATTRIBUTE4 ,
+                   ERROR_CODE ,
+                   PRODUCING_ORG ,
+                   GCC
+                 FROM
+                   ( SELECT DISTINCT 1              AS INDEX_ID ,
+                     wiwc_ttl.transaction_id        AS TRANSACTION_ID,
+                     wiwc_ttl.transaction_date      AS TRANSACTION_DATE,
+                     wiwc_ttl.transaction_type_name AS TRANSACTION_TYPE_NAME,
+                     wiwc_ttl.batch_id_number       AS BATCH_ID_NUMBER,
+                     wiwc_ttl.organization_code     AS ORGANIZATION_CODE,
+                     wiwc_ttl.item_number           AS ITEM_NUMBER ,
+                     wiwc_ttl.transaction_uom       AS TRANSACTION_UOM ,
+                     wiwc_ttl.transaction_quantity  AS QUANTITY_COMPLETED ,
+                     NULL                           AS QUANTITY_YIELD ,
+                     NULL                           AS THEORETICAL_QUANTITY ,
+                     (
+                     CASE
+                       WHEN wiwc_ttl.attribute4 = 'WIP ISSUE'
+                       THEN ABS(wiwc_ttl.total_value)
+                       WHEN wiwc_ttl.attribute4 = 'WIP COMP'
+                       THEN 0-ABS(bc.unit_cost * wiwc_ttl.transaction_quantity)
+                     END)                   AS TRANSACTION_AMOUNT ,
+                     NULL                   AS BATCH_COMPLETE ,
+                     NULL                   AS UNIT_COST ,
+                     NULL                   AS TOTAL_DIFFERENCE ,
+                     NULL                   AS YIELD_VAR ,
+                     NULL                   AS USAGE_VAR ,
+                     wiwc_ttl.attribute4    AS ATTRIBUTE4,
+                     NULL                   AS ERROR_CODE ,
+                     wiwc_ttl.producing_org AS PRODUCING_ORG ,
+                     wiwc_ttl.gcc           AS GCC
+                   FROM
+                     (SELECT wiwc.transaction_id  AS TRANSACTION_ID,
+                       wiwc.transaction_date      AS TRANSACTION_DATE,
+                       wiwc.transaction_type_name AS TRANSACTION_TYPE_NAME,
+                       wiwc.batch_id_number       AS BATCH_ID_NUMBER,
+                       wiwc.organization_code     AS ORGANIZATION_CODE,
+                       wiwc.item_number           AS ITEM_NUMBER ,
+                       wiwc.transaction_uom       AS TRANSACTION_UOM ,
+                       wiwc.transaction_quantity  AS TRANSACTION_QUANTITY ,
+                       wiwc.total_value           AS TOTAL_VALUE ,
+                       wiwc.attribute4            AS ATTRIBUTE4,
+                       wiwc.producing_org         AS PRODUCING_ORG,
+                       wiwc.gcc                   AS GCC
+                     FROM
+                       (SELECT wc.OPERATING_UNIT ,
+                         wc.ORGANIZATION_CODE ,
+                         wc.LEGAL_ENTITY ,
+                         wc.TRANSACTION_DATE,
+                         wc.TRANSACTION_REFERENCE ,
+                         wc.TRANSACTION_ID ,
+                         wc.TRANSACTION_TYPE_ID ,
+                         wc.TRANSACTION_TYPE_NAME ,
+                         wc.SUBINVENTORY_CODE ,
+                         wc.INVENTORY_ITEM_ID ,
+                         wc.ITEM_NUMBER ,
+                         wc.BATCH_ID_NUMBER ,
+                         wc.ITEM_TYPE ,
+                         wc.TRANSACTION_UOM ,
+                         wc.TRANSACTION_QUANTITY ,
+                         wc.PRODUCING_ORG ,
+                         wc.TOTAL_VALUE ,
+                         wc.REASON_ID,
+                         wc.REASON_CODE ,
+                         wc.LOT_NUMBER ,
+                         wc.BATCH_COMPLETE ,
+                         wc.BATCH_SIZE ,
+                         wc.ATTRIBUTE4,
+                         wc.ORGANIZATION_ID,
+                         wc_gcc.GCC
+                       FROM(wiwc_sql ) wc ,
+                         (wiwc_gcc_sql) wc_gcc
+                       WHERE wc.transaction_id = wc_gcc.transaction_id (+)
+                       ) wiwc
+                     )Wiwc_ttl ,
+                     ( bc_sql ) bc
+                   WHERE wiwc_ttl.BATCH_ID_NUMBER = bc.BATCH_ID_NUMBER (+)
+                   AND wiwc_ttl.ITEM_NUMBER       = bc.ITEM_NUMBER (+)
+                   )
+                 GROUP BY INDEX_ID ,
+                   TRANSACTION_ID ,
+                   TRANSACTION_DATE ,
+                   TRANSACTION_TYPE_NAME ,
+                   BATCH_ID_NUMBER ,
+                   ORGANIZATION_CODE ,
+                   ITEM_NUMBER ,
+                   TRANSACTION_UOM ,
+                   QUANTITY_COMPLETED ,
+                   QUANTITY_YIELD ,
+                   THEORETICAL_QUANTITY ,
+                   UNIT_COST ,
+                   ATTRIBUTE4 ,
+                   NULL ,
+                   BATCH_COMPLETE ,
+                   TOTAL_DIFFERENCE ,
+                   YIELD_VAR ,
+                   USAGE_VAR ,
+                   ERROR_CODE ,
+                   PRODUCING_ORG ,
+                   GCC
+                 UNION ALL
+                 ------------------------
+                 -- TOTAL PER BATCH ID --
+                 ------------------------
+                 SELECT INDEX_ID ,
+                   TRANSACTION_ID ,
+                   TRANSACTION_DATE ,
+                   TRANSACTION_TYPE_NAME ,
+                   BATCH_ID_NUMBER ,
+                   ORGANIZATION_CODE ,
+                   ITEM_NUMBER ,
+                   TRANSACTION_UOM ,
+                   QUANTITY_COMPLETED ,
+                   QUANTITY_YIELD ,
+                   THEORETICAL_QUANTITY ,
+                   TRANSACTION_AMOUNT ,
+                   BATCH_COMPLETE ,
+                   UNIT_COST ,
+                   TOTAL_DIFFERENCE ,
+                   YIELD_VAR ,
+                   USAGE_VAR ,
+                   ATTRIBUTE4 ,
+                   ERROR_CODE ,
+                   PRODUCING_ORG ,
+                   GCC
+                 FROM
+                   ( SELECT DISTINCT 2 AS INDEX_ID --Add distinct UAT UAT123456789--
+                     ,
+                     NULL                     AS TRANSACTION_ID ,
+                     bc.transaction_date      AS TRANSACTION_DATE,
+                     bc.transaction_type_name AS TRANSACTION_TYPE_NAME ,
+                     bc.batch_id_number       AS BATCH_ID_NUMBER ,
+                     bc.organization_code     AS ORGANIZATION_CODE,
+                     bc.item_number           AS ITEM_NUMBER,
+                     bc.transaction_uom       AS TRANSACTION_UOM,
+                     NULL                     AS QUANTITY_COMPLETED ,
+                     bc.transaction_quantity  AS QUANTITY_YIELD ,
+                     bc.batch_size            AS THEORETICAL_QUANTITY ,
+                     NULL                     AS TRANSACTION_AMOUNT ,
+                     bc.batch_complete        AS BATCH_COMPLETE,
+                     bc.unit_cost             AS UNIT_COST,
+                     (
+                     CASE
+                       WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                       AND bc.batch_id_number                        IS NOT NULL
+                       THEN 1
+                       WHEN bc.batch_complete != 'Y'
+                       THEN 2
+                       ELSE wiwc_ttl.total_value1
+                     END ) AS TOTAL_DIFFERENCE ,
+                     (
+                     CASE
+                       WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                       AND bc.batch_id_number                        IS NOT NULL
+                       THEN 1
+                       WHEN bc.batch_complete != 'Y'
+                       THEN 2
+                       ELSE (bc.Batch_size - bc.transaction_quantity)*bc.unit_cost
+                     END ) AS YIELD_VAR ,
+                     (
+                     CASE
+                       WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                       AND bc.batch_id_number                        IS NOT NULL
+                       THEN 1
+                       WHEN bc.batch_complete != 'Y'
+                       THEN 2
+                       ELSE
+                         --(NVL(wiwc_ttl.total_value1,0))-((bc.batch_size - bc.transaction_quantity)*bc.unit_cost)
+                         DECODE(abc.ttl_bs,0,0,(( NVL(wiwc_ttl.total_value1,0) - abc.ttl_yld_var) / abc.ttl_bs )* bc.batch_size )
+                     END)          AS USAGE_VAR ,
+                     bc.attribute4 AS ATTRIBUTE4,
+                     (
+                     CASE
+                       WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                       AND bc.batch_id_number                        IS NOT NULL
+                       THEN 'Yield qty does not match total qty completed'
+                       WHEN bc.batch_complete != 'Y'
+                       THEN 'The Batch is not complete'
+                     END) AS ERROR_CODE ,
+                     NULL AS PRODUCING_ORG ,
+                     NULL AS GCC
+                   FROM
+                     (SELECT wiwc_b.operating_unit          AS OPERATING_UNIT ,
+                       wiwc_b.legal_entity                  AS LEGAL_ENTITY ,
+                       wiwc_b.batch_id_number               AS BATCH_ID_NUMBER ,
+                       SUM(wiwc_b.transaction_quantity_ttl) AS TRANSACTION_QUANTITY_TTL ,
+                       SUM(wiwc_b.total_value1)             AS TOTAL_VALUE1
+                     FROM
+                       (SELECT wiwc_a.operating_unit          AS OPERATING_UNIT,
+                         wiwc_a.legal_entity                  AS LEGAL_ENTITY,
+                         wiwc_a.batch_id_number               AS BATCH_ID_NUMBER,
+                         wiwc_a.transaction_id                AS TRANSACTION_ID,
+                         wiwc_a.item_number                   AS ITEM_NUMBER,
+                         (NVL(wiwc_a.transaction_quantity,0)) AS TRANSACTION_QUANTITY_TTL ,
+                         SUM(wiwc_a.total_value2)             AS TOTAL_VALUE1
+                       FROM
+                         ( SELECT DISTINCT wiwc_ttl.operating_unit AS OPERATING_UNIT,
+                           wiwc_ttl.legal_entity                   AS LEGAL_ENTITY,
+                           wiwc_ttl.transaction_id                 AS TRANSACTION_ID,
+                           wiwc_ttl.batch_id_number                AS BATCH_ID_NUMBER,
+                           wiwc_ttl.organization_code              AS ORGANIZATION_CODE,
+                           wiwc_ttl.item_number                    AS ITEM_NUMBER ,
+                           wiwc_ttl.transaction_quantity           AS TRANSACTION_QUANTITY,
+                           (
+                           CASE
+                             WHEN wiwc_ttl.attribute4 = 'WIP ISSUE'
+                             THEN ABS(wiwc_ttl.total_value)
+                             WHEN wiwc_ttl.attribute4 = 'WIP COMP'
+                             THEN 0-ABS(bc.unit_cost * wiwc_ttl.transaction_quantity)
+                           END) AS TOTAL_VALUE2
+                         FROM
+                           (SELECT wc.OPERATING_UNIT AS OPERATING_UNIT ,
+                             wc.LEGAL_ENTITY         AS LEGAL_ENTITY ,
+                             wc.TRANSACTION_ID       AS TRANSACTION_ID ,
+                             wc.BATCH_ID_NUMBER      AS BATCH_ID_NUMBER ,
+                             wc.ORGANIZATION_CODE    AS ORGANIZATION_CODE ,
+                             wc.ITEM_NUMBER          AS ITEM_NUMBER ,
+                             wc.TRANSACTION_QUANTITY AS TRANSACTION_QUANTITY ,
+                             wc.TOTAL_VALUE          AS TOTAL_VALUE ,
+                             wc.ATTRIBUTE4           AS ATTRIBUTE4 ,
+                             wc_gcc.GCC              AS GCC
+                           FROM(wiwc_sql) wc ,
+                             (wiwc_gcc_sql) wc_gcc
+                           WHERE wc.transaction_id = wc_gcc.transaction_id (+)
+                           )Wiwc_ttl ,
+                           ( bc_sql )bc
+                         WHERE wiwc_ttl.BATCH_ID_NUMBER = bc.BATCH_ID_NUMBER (+)
+                         AND wiwc_ttl.ITEM_NUMBER       = bc.ITEM_NUMBER (+)
+                         ) wiwc_a
+                       GROUP BY wiwc_a.OPERATING_UNIT,
+                         wiwc_a.LEGAL_ENTITY,
+                         wiwc_a.BATCH_ID_NUMBER,
+                         wiwc_a.ITEM_NUMBER,
+                         wiwc_a.TRANSACTION_QUANTITY,
+                         wiwc_a.TRANSACTION_ID,
+                         (NVL(wiwc_a.TRANSACTION_QUANTITY,0))
+                       ) wiwc_b
+                     GROUP BY wiwc_b.OPERATING_UNIT,
+                       wiwc_b.LEGAL_ENTITY,
+                       wiwc_b.BATCH_ID_NUMBER
+                     ) wiwc_ttl ,
+                     ( bc_sql )bc,
+                     ( abc_sql )abc
+                   WHERE wiwc_ttl.BATCH_ID_NUMBER(+) = bc.BATCH_ID_NUMBER
+                   AND bc.BATCH_ID_NUMBER            = abc.BATCH_ID_NUMBER
+                   )
+                 UNION ALL
+                 -----------------
+                 -- GRAND TOTAL --
+                 -----------------
+                 SELECT 3 AS INDEX_ID ,
+                   NULL   AS TRANSACTION_ID ,
+                   NULL   AS TRANSACTION_DATE ,
+                   NULL   AS TRANSACTION_TYPE_NAME ,
+                   NULL   AS BATCH_ID_NUMBER ,
+                   NULL   AS ORGANIZATION_CODE ,
+                   NULL   AS ITEM_NUMBER ,
+                   NULL   AS TRANSACTION_UOM ,
+                   NULL   AS QUANTITY_COMPLETED ,
+                   NULL   AS QUANTITY_YIELD ,
+                   NULL   AS THEORETICAL_QUANTITY ,
+                   NULL   AS TRANSACTION_AMOUNT ,
+                   NULL   AS BATCH_COMPLETE ,
+                   NULL   AS UNIT_COST
+                   --, NULL AS ttl_yld_var
+                   ,
+                   SUM(TOTAL_DIFFERENCE)AS TOTAL_DIFFERENCE ,
+                   SUM(YIELD_VAR)       AS YIELD_VAR ,
+                   SUM(USAGE_VAR)       AS USAGE_VAR ,
+                   NULL                 AS ATTRIBUTE4 ,
+                   NULL                 AS ERROR_CODE ,
+                   NULL                 AS PRODUCING_ORG ,
+                   NULL                 AS GCC
+                 FROM
+                   (SELECT BATCH_ID_NUMBER AS BATCH_ID_NUMBER,
+                     TOTAL_DIFFERENCE      AS TOTAL_DIFFERENCE,
+                     SUM(YIELD_VAR)        AS YIELD_VAR ,
+                     SUM(USAGE_VAR)        AS USAGE_VAR
+                   FROM
+                     ( SELECT DISTINCT
+                       --  bc.transaction_date
+                       -- , bc.transaction_type_name
+                       wiwc_ttl.batch_id_number
+                       -- , bc.organization_code
+                       -- , bc.item_number
+                       -- , bc.transaction_uom
+                       -- , NULL AS quantity_completed
+                       -- , bc.transaction_quantity AS quantity_yield
+                       -- , bc.batch_size AS theoretical_quantity
+                       -- , NULL AS transaction_amount
+                       -- , bc.batch_complete
+                       -- , bc.unit_cost
+                       -- ,
+                       ,
+                       (
+                       CASE
+                         WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                         AND bc.batch_id_number                        IS NOT NULL
+                         THEN 0
+                         WHEN bc.batch_complete != 'Y'
+                         THEN 0
+                         ELSE wiwc_ttl.total_value1
+                       END ) AS TOTAL_DIFFERENCE ,
+                       (
+                       CASE
+                         WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                         AND bc.batch_id_number                        IS NOT NULL
+                         THEN 0
+                         WHEN bc.batch_complete != 'Y'
+                         THEN 0
+                         ELSE (bc.batch_size - bc.transaction_quantity)*bc.unit_cost
+                       END ) AS YIELD_VAR ,
+                       (
+                       CASE
+                         WHEN NVL(wiwc_ttl.transaction_quantity_ttl,0) <> NVL(abc.transaction_quantity,0)
+                         AND bc.batch_id_number                        IS NOT NULL
+                         THEN 0
+                         WHEN bc.batch_complete != 'Y'
+                         THEN 0
+                         ELSE
+                           --(NVL(wiwc_ttl.TOTAL_VALUE1,0))-((bc.BATCH_SIZE - bc.TRANSACTION_QUANTITY)*bc.UNIT_COST)
+                           -- ((((NVL(wiwc_ttl.TOTAL_VALUE1,0)) - (abc.TTL_YLD_VAR)) / (abc.TTL_BS) )* bc.BATCH_SIZE )
+                           DECODE(abc.ttl_bs,0,0,(( NVL(wiwc_ttl.total_value1,0) - abc.ttl_yld_var) / abc.ttl_bs)* bc.batch_size )
+                       END) AS USAGE_VAR
+                       -- , bc.ATTRIBUTE4
+                     FROM
+                       (SELECT wiwc_b.operating_unit          AS OPERATING_UNIT,
+                         wiwc_b.Legal_entity                  AS LEGAL_ENTITY,
+                         wiwc_b.Batch_id_number               AS BATCH_ID_NUMBER,
+                         SUM(wiwc_b.transaction_quantity_ttl) AS TRANSACTION_QUANTITY_TTL ,
+                         SUM(wiwc_b.total_value1)             AS TOTAL_VALUE1
+                       FROM
+                         (SELECT wiwc_a.operating_unit          AS OPERATING_UNIT,
+                           wiwc_a.legal_entity                  AS LEGAL_ENTITY,
+                           wiwc_a.batch_id_number               AS BATCH_ID_NUMBER,
+                           wiwc_a.transaction_id                AS TRANSACTION_ID,
+                           wiwc_a.item_number                   AS ITEM_NUMBER,
+                           (NVL(wiwc_a.transaction_quantity,0)) AS TRANSACTION_QUANTITY_TTL ,
+                           SUM(wiwc_a.total_value2)             AS TOTAL_VALUE1
+                         FROM
+                           ( SELECT DISTINCT wiwc_ttl.operating_unit AS OPERATING_UNIT,
+                             wiwc_ttl.legal_entity                   AS LEGAL_ENTITY,
+                             wiwc_ttl.transaction_id                 AS TRANSACTION_ID,
+                             wiwc_ttl.batch_id_number                AS BATCH_ID_NUMBER,
+                             wiwc_ttl.organization_code              AS ORGANIZATION_CODE,
+                             wiwc_ttl.item_number                    AS ITEM_NUMBER ,
+                             wiwc_ttl.transaction_quantity           AS TRANSACTION_QUANTITY ,
+                             (
+                             CASE
+                               WHEN wiwc_ttl.attribute4 = 'WIP ISSUE'
+                               THEN ABS(wiwc_ttl.total_value)
+                               WHEN wiwc_ttl.attribute4 = 'WIP COMP'
+                               THEN 0-ABS(bc.unit_cost * wiwc_ttl.transaction_quantity)
+                             END) AS TOTAL_VALUE2
+                           FROM
+                             (SELECT wc.OPERATING_UNIT AS OPERATING_UNIT ,
+                               wc.LEGAL_ENTITY         AS LEGAL_ENTITY ,
+                               wc.TRANSACTION_ID       AS TRANSACTION_ID ,
+                               wc.BATCH_ID_NUMBER      AS BATCH_ID_NUMBER ,
+                               wc.ORGANIZATION_CODE    AS ORGANIZATION_CODE ,
+                               wc.ITEM_NUMBER          AS ITEM_NUMBER ,
+                               wc.TRANSACTION_QUANTITY AS TRANSACTION_QUANTITY ,
+                               wc.TOTAL_VALUE          AS TOTAL_VALUE ,
+                               wc.ATTRIBUTE4           AS ATTRIBUTE4 ,
+                               wc_gcc.GCC              AS GCC
+                             FROM(wiwc_sql) wc ,
+                               (wiwc_gcc_sql) wc_gcc
+                             WHERE wc.transaction_id = wc_gcc.transaction_id (+)
+                             )Wiwc_ttl ,
+                             ( bc_sql ) bc
+                           WHERE wiwc_ttl.BATCH_ID_NUMBER = bc.BATCH_ID_NUMBER (+)
+                           AND wiwc_ttl.ITEM_NUMBER       = bc.ITEM_NUMBER (+)
+                           ) wiwc_a
+                         GROUP BY wiwc_a.OPERATING_UNIT,
+                           wiwc_a.LEGAL_ENTITY,
+                           wiwc_a.BATCH_ID_NUMBER,
+                           wiwc_a.ITEM_NUMBER,
+                           wiwc_a.TRANSACTION_QUANTITY,
+                           wiwc_a.TRANSACTION_ID,
+                           (NVL(wiwc_a.TRANSACTION_QUANTITY,0))
+                         ) wiwc_b
+                       GROUP BY wiwc_b.OPERATING_UNIT,
+                         wiwc_b.LEGAL_ENTITY,
+                         wiwc_b.BATCH_ID_NUMBER
+                       ) wiwc_ttl ,
+                       ( bc_sql ) bc ,
+                       ( abc_sql )abc
+                     WHERE wiwc_ttl.BATCH_ID_NUMBER(+) = bc.BATCH_ID_NUMBER
+                     AND bc.BATCH_ID_NUMBER            = abc.BATCH_ID_NUMBER
+                     )
+                   GROUP BY TOTAL_DIFFERENCE,
+                     BATCH_ID_NUMBER
+                   )
+                 GROUP BY 3,
+                   NULL
+                 )
+               ORDER BY BATCH_ID_NUMBER ASC NULLS LAST,
+                 INDEX_ID ,
+                 ITEM_NUMBER ASC NULLS FIRST
+   ]]>
+    </sqlStatement>
+  </dataQuery>
+  <dataStructure>
+
+    <group name = "MAIN" source = "YLD_MTL_SQL">
+         <element name = "INDEX_ID" dataType="VARCHAR2" value="INDEX_ID"/>
+         <element name = "ORGANIZATION_CODE" dataType="VARCHAR2" value="ORGANIZATION_CODE"/>
+         <element name = "TRANSACTION_DATE" dataType="VARCHAR2" value="TRANSACTION_DATE"/>
+         <element name = "TRANSACTION_TYPE_NAME" dataType="VARCHAR2" value="TRANSACTION_TYPE_NAME"/>
+         <element name = "ITEM_NUMBER" dataType="VARCHAR2" value="ITEM_NUMBER"/>
+         <element name = "BATCH_ID_NUMBER" dataType="VARCHAR2" value="BATCH_ID_NUMBER"/>
+         <element name = "TRANSACTION_UOM" dataType="VARCHAR2" value="TRANSACTION_UOM"/>
+         <element name = "QUANTITY_COMPLETED" dataType="VARCHAR2" value="QUANTITY_COMPLETED"/>
+         <element name = "QUANTITY_YIELD" dataType="VARCHAR2" value="QUANTITY_YIELD"/>
+         <element name = "THEORETICAL_QUANTITY" dataType="VARCHAR2" value="THEORETICAL_QUANTITY"/>
+         <element name = "UNIT_COST" dataType="VARCHAR2" value="UNIT_COST"/>
+         <element name = "TRANSACTION_AMOUNT" dataType="VARCHAR2" value="TRANSACTION_AMOUNT"/>
+         <element name = "TOTAL_DIFFERENCE" dataType="VARCHAR2" value="TOTAL_DIFFERENCE"/>
+         <element name = "YIELD_VAR" dataType="VARCHAR2" value="YIELD_VAR"/>
+         <element name = "USAGE_VAR" dataType="VARCHAR2" value="USAGE_VAR"/>
+         <element name = "BATCH_COMPLETE" dataType="VARCHAR2" value="BATCH_COMPLETE"/>
+         <element name = "ERROR_CODE" dataType="VARCHAR2" value="ERROR_CODE"/>
+         <element name = "PRODUCING_ORG" dataType="VARCHAR2" value="PRODUCING_ORG"/>
+         <element name = "GCC" dataType="VARCHAR2" value="GCC"/>
+    </group>
+  </dataStructure>
+</dataTemplate>

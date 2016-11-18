@@ -1,0 +1,1218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- $Header: POXRCPPV_XML.xml 120.0.12010000.8 2013/02/01 14:08:43 gjyothi ship $ -->
+<!-- dbdrv: exec java oracle/apps/xdo/oa/util XDOLoader.class java &phase=dat checkfile(120.0.12010000.4=120.6)(120.0.12010000.5=120.6):~PROD:patch/115/publisher/defs:POXRCPPV_XML.xml UPLOAD -DB_USERNAME &un_apps -DB_PASSWORD &pw_apps -JDBC_CONNECTION &jdbc_db_addr -LOB_TYPE DATA_TEMPLATE -APPS_SHORT_NAME ~PROD -LOB_CODE POXRCPPV_XML -LANGUAGE 00 -XDO_FILE_TYPE XML-DATA-TEMPLATE -FILE_NAME &fullpath:~PROD:patch/115/publisher/defs:POXRCPPV_XML.xml -->
+<!-- GSCC_Category="Xdo Data Definition" -->
+<!--  
+ *  File           : XXNBTYINVRPT003_DT.xml
+ *  Author         : Aries Gacias, Accenture
+ *  Date           Author              Onshore Counterpart                   Description
+ *  ________________________________________________________________________________________________________________________
+ *  2016-May-02    Albert John Flores  Patil,Vijendra                  Initial Modification. Add Column Extended PO Value, Extended Standard Value,                                                                      Extended Mat. Overhead value, Unit Price Variance, Inventory Org, Inventory                                                                      Org Description, Subinventory
+ *  2016-May-17	   Aries Gacias		   Patil,Vijendra	               Added Columns Legacy Part Number, Prefix,Suffix, Primary UOM, %Variance 
+ *  2016-May-19	   Aries Gacias		   Goyal,Pradeep	               Added Columns OSP Component, OSP Standard Cost, PO/OSP Cost Difference,                                                                      Extended PPV based on OSP 
+ *	2016-JUL-28	   Aries Gacias		   Goyal,Pradeep	               Added Columns Adjusted PPV, GL String,Item Part of BOM or Formula, PDH                                                                      Attribute of Inventory Item, ICC Type, Category Manager, Commodity Manager,                                                                      Exclude org (180,181,182)
+ *	2016-JUL-29	   Aries Gacias		   Goyal,Pradeep                   Additional Parameter Item_Type(Inventory or Expense based on Stockable_Flag)
+ *  2016-SEP-24    Albert Flores       Goyal,Pradeep                   Add distinct Q_Pos queries
+ *  2016-OCT-25    Khristine Austero   Goyal, Pradeep                  EX_MTLOH_VALUE formula should be Quantity Received * Mat. Overhead Unit Cost, UNIT_PRICE_VAR formula should be PO Unit Price - STD Unit Cost - Mat. Overhead Unit Cost
+ -->                                                                           
+
+<dataTemplate name="POXRCPPV" defaultPackage="PO_POXRCPPV_XMLP_PKG" version="1.0">
+	<properties>
+		<property name="xml_tag_case" value="upper" />
+	</properties>
+	<parameters>
+		<parameter name="P_TITLE" dataType="character"></parameter>
+		<parameter name="P_CONC_REQUEST_ID" dataType="number" defaultValue="0"></parameter>
+		<parameter name="P_VENDOR_FROM" dataType="character"></parameter>
+		<parameter name="P_VENDOR_TO" dataType="character"></parameter>
+		<parameter name="P_TRANS_DATE_FROM" dataType="date"></parameter>
+		<parameter name="P_TRANS_DATE_TO" dataType="date"></parameter>
+		<parameter name="P_DESTINATION_TYPE" dataType="character"></parameter>
+		<parameter name="P_ORDERBY" dataType="character"></parameter>
+		<parameter name="P_ORDERBY_CAT" dataType="character"></parameter>
+		<parameter name="P_ORDERBY_ITEM" dataType="character"></parameter>
+		<parameter name="P_QTY_PRECISION" dataType="character" defaultValue="0"></parameter>
+		<parameter name="P_CATEGORY_FROM" dataType="character"></parameter>
+		<parameter name="P_CATEGORY_TO" dataType="character"></parameter>
+		<parameter name="P_STRUCT_NUM" dataType="number" defaultValue="101"></parameter>
+		<parameter name="P_WHERE_CAT" dataType="character" defaultValue="1=1"></parameter>
+		<parameter name="P_ORG_ID" dataType="character"></parameter>
+		<parameter name="P_ITEM_TYPE" dataType="character"></parameter>
+	</parameters>
+	<lexicals>
+		<lexical type="oracle.apps.fnd.flex.kff.order_by" name="P_ORDERBY_CAT" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MCA" segments="ALL" show_parent_segments="Y" />
+		<lexical type="oracle.apps.fnd.flex.kff.order_by" name="P_ORDERBY_ITEM" application_short_name="INV" id_flex_code="MSTK" id_flex_num="101" multiple_id_flex_num="N" code_combination_table_alias="MSI" segments="ALL" show_parent_segments="Y" />
+		<lexical type="oracle.apps.fnd.flex.kff.where" name="P_WHERE_CAT" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" code_combination_table_alias="MCA" segments="ALL" operator="BETWEEN" operand1=":P_CATEGORY_FROM" operand2=":P_CATEGORY_TO" />
+		<lexical type="oracle.apps.fnd.flex.kff.select" name="C_FLEX_CAT_DISP" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MCA" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+		<lexical type="oracle.apps.fnd.flex.kff.select" name="C_FLEX_ITEM_DISP" application_short_name="INV" id_flex_code="MSTK" id_flex_num="101" multiple_id_flex_num="N" code_combination_table_alias="MSI" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+		<lexical type="oracle.apps.fnd.flex.kff.select" name="C_FLEX_CAT_DISP1" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MCA" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+		<lexical type="oracle.apps.fnd.flex.kff.select" name="C_FLEX_ITEM_DISP1" application_short_name="INV" id_flex_code="MSTK" id_flex_num="101" multiple_id_flex_num="N" code_combination_table_alias="MSI" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+	</lexicals>
+	<dataTrigger name="afterParameterFormTrigger" source="PO_POXRCPPV_XMLP_PKG.afterpform" />
+	<dataTrigger name="beforeReportTrigger" source="PO_POXRCPPV_XMLP_PKG.beforereport" />
+	<dataQuery>
+		<sqlStatement name="Q_comtpny">
+			<![CDATA[
+SELECT   gsb.name                       c_comtpny
+,        fsp.inventory_organization_id c_organization_id
+,        gsb.currency_code             GL_CURRENCY
+,        gsb.chart_of_accounts_id      STRUCTURE_ACC
+,        mdv.structure_id              STRUCTURE_CAT
+,        mdv.category_set_id           c_category_set_id
+,        flo1.meaning                  c_yes
+,        flo2.meaning                  c_no
+,        fc.precision		c_precision
+,       nvl(fc.extended_precision,fc.precision)  c_ext_precision
+FROM     gl_sets_of_books              gsb
+,        financials_system_parameters  fsp
+,        mtl_default_sets_view         mdv
+,        fnd_lookups                   flo1
+,        fnd_lookups                   flo2
+,        fnd_currencies	             fc
+WHERE    gsb.set_of_books_id           = fsp.set_of_books_id
+AND      mdv.functional_area_id        = 2
+AND      flo1.lookup_type              = 'YES_NO'
+AND      flo1.lookup_code              = 'Y'
+AND      flo2.lookup_type              = 'YES_NO'
+AND      flo2.lookup_code              = 'N'
+AND      fc.enabled_flag	='Y'
+AND 	fc.currency_code	= gsb.currency_code
+]]>
+		</sqlStatement>
+		<sqlStatement name="Q_Pos">
+			<![CDATA[
+
+WITH  ICC_TYPE AS (SELECT  msi.inventory_item_id ,UPPER(ecg.catalog_group) catalog_group_x, msi.organization_id
+                     FROM mtl_system_items msi
+                         ,ego_catalog_groups_v ecg                                                          
+                      WHERE  ecg.catalog_group_id(+)  = msi.item_catalog_group_id)  					 				  
+      ,COM_MNGR AS (SELECT mcv.category_id, papf.full_name
+                        FROM mtl_categories_v   mcv
+                             ,mtl_categories    mca
+                             ,per_all_people_f  papf
+                        WHERE 1=1 
+                        AND mcv.attribute6 = papf.person_id(+)
+		                AND mcv.CATEGORY_ID = mca.category_id)
+							 
+       ,STANDARD_COST_OSP AS (SELECT msi.inventory_item_id, 
+	                                 cst_cost_api.get_item_cost(1,msic.inventory_item_id, msic.organization_id,NULL,NULL) comp_item_cost
+	                                 From apps.mtl_system_items msi,  
+                                          apps.mtl_parameters mp , 
+                                          apps.bom_bill_of_materials bom , 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL icc ,  
+                                          apps.bom_inventory_components bomc, 
+                                          apps.mtl_system_items msic, 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL comp_icc 					
+                                     where 1=1
+		                      	     and bom.assembly_item_id = msi.inventory_item_id  
+                                       and bom.organization_id  = msi.organization_id  
+                                       and msi.organization_id = mp.organization_id  
+                                       and icc.item_catalog_group_id = msi.item_catalog_group_id 
+                                       and bomc.bill_sequence_id = bom.bill_sequence_id 
+                                       and msic.inventory_item_id = bomc.component_item_id  
+                                       and msic.organization_id = bom.organization_id 
+                                       and comp_icc.item_catalog_group_id = msic.item_catalog_group_id
+                                       and mp.organization_code like ('P%')
+                                       and comp_icc.description = 'Outside Mfg Component Products')
+		,LEGACY_PART_NUM   AS  (SELECT emsieb.INVENTORY_ITEM_ID
+		                           ,MAX(DECODE(eagv.attr_group_name, 'NBTY_LEGACY_MAIN_ATTR', emsieb.n_ext_attr1,'NBTY_LEGACY_PACKAGING_MAIN_ATT', emsieb.n_ext_attr1,NULL)) legacy_x
+		                            FROM apps.ego_mtl_sy_items_ext_b emsieb
+                                                    ,apps.ego_attr_groups_v eagv
+                                                    ,apps.mtl_system_items_b msib 
+                                              WHERE eagv.attr_group_id = emsieb.attr_group_id
+                                               AND msib.inventory_item_id = emsieb.inventory_item_id
+                                                AND msib.organization_id = emsieb.organization_id
+                                                AND eagv.attr_group_name IN ('NBTY_LEGACY_PACKAGING_MAIN_ATT',
+                                                                          'NBTY_LEGACY_MAIN_ATTR',
+                                                                          'NBTY_LEGACY_FG_MAIN_ATTR',
+                                                                          'NBTY_LEGACY_BULK_MAIN_ATTR')
+		                       							GROUP BY emsieb.INVENTORY_ITEM_ID) 
+        ,PREFFIX      AS  (SELECT emsieb.INVENTORY_ITEM_ID
+		                           ,MAX(DECODE(eagv.attr_group_name, 'NBTY_LEGACY_BULK_MAIN_ATTR', emsieb.c_ext_attr4,'NBTY_LEGACY_PACKAGING_MAIN_ATT', emsieb.c_ext_attr1,NULL)) preffix_x
+                                    FROM apps.ego_mtl_sy_items_ext_b emsieb
+                                                    ,apps.ego_attr_groups_v eagv
+                                                    ,apps.mtl_system_items_b msib 
+                                              WHERE eagv.attr_group_id = emsieb.attr_group_id
+                                               AND msib.inventory_item_id = emsieb.inventory_item_id
+                                                AND msib.organization_id = emsieb.organization_id
+                                                AND eagv.attr_group_name IN ('NBTY_LEGACY_PACKAGING_MAIN_ATT',
+                                                                          'NBTY_LEGACY_MAIN_ATTR',
+                                                                          'NBTY_LEGACY_FG_MAIN_ATTR',
+                                                                          'NBTY_LEGACY_BULK_MAIN_ATTR')
+		                       							GROUP BY emsieb.INVENTORY_ITEM_ID) 
+		,SUFFIX       AS    (SELECT emsieb.INVENTORY_ITEM_ID
+		                            ,MAX(DECODE(eagv.attr_group_name, 'NBTY_LEGACY_FG_MAIN_ATTR', emsieb.c_ext_attr2,NULL)) suffix_x
+		                            FROM apps.ego_mtl_sy_items_ext_b emsieb
+                                                 ,apps.ego_attr_groups_v eagv
+                                                 ,apps.mtl_system_items_b msib 
+                                           WHERE eagv.attr_group_id = emsieb.attr_group_id
+                                            AND msib.inventory_item_id = emsieb.inventory_item_id
+                                             AND msib.organization_id = emsieb.organization_id
+                                             AND eagv.attr_group_name IN ('NBTY_LEGACY_PACKAGING_MAIN_ATT',
+                                                                       'NBTY_LEGACY_MAIN_ATTR',
+                                                                       'NBTY_LEGACY_FG_MAIN_ATTR',
+                                                                       'NBTY_LEGACY_BULK_MAIN_ATTR')
+		                   							GROUP BY emsieb.INVENTORY_ITEM_ID)
+        
+      ,BOM_FOM AS  ( SELECT SEGMENT1, MAX(nvl(disable_date,'01-JAN-9999')) END_DATE  
+	                  FROM
+					  (SELECT  msic.segment1,
+	                           bomc.disable_date  DISABLE_DATE
+                             FROM apps.mtl_system_items msi,  
+                                          apps.mtl_parameters mp , 
+                                          apps.bom_bill_of_materials bom , 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL icc ,  
+                                          apps.bom_inventory_components bomc, 
+                                          apps.mtl_system_items msic, 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL comp_icc 
+                             WHERE 1=1  
+		                      	     and bom.assembly_item_id = msi.inventory_item_id  
+                                     and bom.organization_id  = msi.organization_id  
+                                     and msi.organization_id = mp.organization_id  
+                                     and icc.item_catalog_group_id = msi.item_catalog_group_id 
+                                     and bomc.bill_sequence_id = bom.bill_sequence_id 
+                                     and msic.inventory_item_id = bomc.component_item_id  
+                                     and msic.organization_id = bom.organization_id 
+                                     and comp_icc.item_catalog_group_id = msic.item_catalog_group_id
+									 --and (nvl(bomc.disable_date,'01-JAN-9999') >= :P_TRANS_DATE_FROM 
+							 UNION
+							 SELECT msi.segment1,
+							        bomc.disable_date  DISABLE_DATE
+                             FROM apps.mtl_system_items msi,  
+                                          apps.mtl_parameters mp , 
+                                          apps.bom_bill_of_materials bom , 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL icc ,  
+                                          apps.bom_inventory_components bomc, 
+                                          apps.mtl_system_items msic, 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL comp_icc 
+                             WHERE 1=1  
+		                      	     and bom.assembly_item_id = msi.inventory_item_id  
+                                     and bom.organization_id  = msi.organization_id  
+                                     and msi.organization_id = mp.organization_id  
+                                     and icc.item_catalog_group_id = msi.item_catalog_group_id 
+                                     and bomc.bill_sequence_id = bom.bill_sequence_id 
+                                     and msic.inventory_item_id = bomc.component_item_id  
+                                     and msic.organization_id = bom.organization_id 
+                                     and comp_icc.item_catalog_group_id = msic.item_catalog_group_id
+                                     --and bomc.disable_date >= :P_TRANS_DATE_FROM			 
+                             UNION
+                             SELECT  mtl.segment1,
+							         vr.end_date DISABLE_DATE
+                             FROM FM_FORM_MST fh,
+                                  FM_MATL_DTL fd,
+                                  mtl_parameters mp,
+                                  mtl_system_items mtl,
+                                  gmd_recipe_validity_rules vr,
+                                  gmd_recipes rec
+                             WHERE 1=1
+                             AND fh.formula_id          = fd.formula_id
+                             AND fh.owner_organization_id = mp.organization_id
+                             AND fd.inventory_item_id     = mtl.inventory_item_id
+                             AND vr.recipe_id             = rec.recipe_id
+                             AND rec.formula_id           = fh.formula_id
+							 --AND nvl(vr.end_date,'01-JAN-9999') >= :P_TRANS_DATE_FROM
+							) GROUP BY 	SEGMENT1							 
+                             )	
+            /* ,BOM_FOM AS  ( 
+					   SELECT  msic.segment1,
+	                           bomc.disable_date  DISABLE_DATE
+                             FROM apps.mtl_system_items msi,  
+                                          apps.mtl_parameters mp , 
+                                          apps.bom_bill_of_materials bom , 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL icc ,  
+                                          apps.bom_inventory_components bomc, 
+                                          apps.mtl_system_items msic, 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL comp_icc 
+                             WHERE 1=1  
+		                      	     and bom.assembly_item_id = msi.inventory_item_id  
+                                     and bom.organization_id  = msi.organization_id  
+                                     and msi.organization_id = mp.organization_id  
+                                     and icc.item_catalog_group_id = msi.item_catalog_group_id 
+                                     and bomc.bill_sequence_id = bom.bill_sequence_id 
+                                     and msic.inventory_item_id = bomc.component_item_id  
+                                     and msic.organization_id = bom.organization_id 
+                                     and comp_icc.item_catalog_group_id = msic.item_catalog_group_id
+									 and nvl(bomc.disable_date,'01-JAN-9999') >= :P_TRANS_DATE_FROM 
+							 UNION
+							 SELECT msi.segment1,
+							        bomc.disable_date  DISABLE_DATE
+                             FROM apps.mtl_system_items msi,  
+                                          apps.mtl_parameters mp , 
+                                          apps.bom_bill_of_materials bom , 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL icc ,  
+                                          apps.bom_inventory_components bomc, 
+                                          apps.mtl_system_items msic, 
+                                          apps.MTL_ITEM_CATALOG_GROUPS_TL comp_icc 
+                             WHERE 1=1  
+		                      	     and bom.assembly_item_id = msi.inventory_item_id  
+                                     and bom.organization_id  = msi.organization_id  
+                                     and msi.organization_id = mp.organization_id  
+                                     and icc.item_catalog_group_id = msi.item_catalog_group_id 
+                                     and bomc.bill_sequence_id = bom.bill_sequence_id 
+                                     and msic.inventory_item_id = bomc.component_item_id  
+                                     and msic.organization_id = bom.organization_id 
+                                     and comp_icc.item_catalog_group_id = msic.item_catalog_group_id
+                                     --and bomc.disable_date >= :P_TRANS_DATE_FROM			 
+                             UNION
+                             SELECT  mtl.segment1,
+							         vr.end_date DISABLE_DATE
+                             FROM FM_FORM_MST fh,
+                                  FM_MATL_DTL fd,
+                                  mtl_parameters mp,
+                                  mtl_system_items mtl,
+                                  gmd_recipe_validity_rules vr,
+                                  gmd_recipes rec
+                             WHERE 1=1
+                             AND fh.formula_id          = fd.formula_id
+                             AND fh.owner_organization_id = mp.organization_id
+                             AND fd.inventory_item_id     = mtl.inventory_item_id
+                             AND vr.recipe_id             = rec.recipe_id
+                             AND rec.formula_id           = fh.formula_id
+							 AND nvl(vr.end_date,'01-JAN-9999') >= :P_TRANS_DATE_FROM
+							 )	*/						 
+				                      
+SELECT DISTINCT
+    null               C_FLEX_CAT
+   ,null               C_FLEX_ITEM
+   ,msi.description    DESCRIPTION
+   ,pov.vendor_name    VENDOR
+   ,decode(poh.type_lookup_code,
+           'BLANKET',
+           poh.segment1||' - '||por.release_num,
+           'PLANNED',
+           poh.segment1||' - '||por.release_num,
+           poh.segment1)        PO_NUMBER_RELEASE
+   ,poh.currency_code           CURRENCY
+   ,papf.full_name              BUYER
+   ,pol.line_num                LINE
+   ,pol.po_header_id||' - '||pol.po_line_id   GROUP_BY_LINEID
+   ,rsh.shipment_num                          SHIPMENT
+   ,rct.transaction_date                      RECEIPT_DATE
+   ,rsh.receipt_num                           RECEIPT_NUMBER
+   ,' '|| ood.organization_code	              ORGANIZATION_CODE
+   , ood.organization_name				      ORGANIZATION_NAME
+   , rct.subinventory					      SUBINVENTORY
+   , round(mmt.primary_quantity,:P_qty_precision)      QUANTITY_RECEIVED
+   , rct.primary_unit_of_measure                       UNIT
+   , ((round(mmt.primary_quantity,:P_qty_precision)) * (round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision))) EX_PO_VALUE 
+   , rct.transaction_id                                          RCT_ID
+   
+   , round(nvl(mmt.actual_cost,0),:c_ext_precision)              STD_UNIT_COST
+   --, ((round(mmt.primary_quantity,:P_qty_precision)) * (round(nvl(mmt.actual_cost,0),:c_ext_precision))) EX_MTLOH_VALUE
+   , ((round(mmt.primary_quantity,:P_qty_precision)) * (round(decode(mta.accounting_line_type, 3, nvl(mcacd.actual_cost,0), 0) , :c_ext_precision))) EX_MTLOH_VALUE 
+   , round(decode(mta.accounting_line_type, 3, nvl(mcacd.actual_cost,0), 0) , :c_ext_precision)          MOH_ABSORBED_PER_UNIT
+   , mtp.process_enabled_flag 
+   , rct.organization_id 
+   , msi.inventory_item_id 
+   --, round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision) UNIT_PRICE_P
+   --, round(nvl(mmt.transaction_cost,0) , :c_ext_precision)       PO_FUNCTIONAL_PRICE_P
+   --,&C_FLEX_CAT_DISP  C_FLEX_CAT_DISP
+   --,&C_FLEX_ITEM_DISP C_FLEX_ITEM_DISP
+   ,mca.segment1 || '.' || mca.segment2 || '.' || mca.segment3 || '.' || mca.segment4    C_FLEX_CAT_DISP
+   ,msi.segment1   C_FLEX_ITEM_DISP
+   ,round(nvl(mmt.actual_cost,0),:c_ext_precision)    STD_UNIT_COST_F
+   ,((round(mmt.primary_quantity,:P_qty_precision)) * (round(nvl(mmt.actual_cost,0),:c_ext_precision))) EX_STD_VALUE
+   ,((round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision)) - (round(nvl(mmt.actual_cost,0),:c_ext_precision)) - (round(decode(mta.accounting_line_type, 3, nvl(mcacd.actual_cost,0), 0) , :c_ext_precision))) UNIT_PRICE_VAR
+   ,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula( round ( nvl ( mmt.transaction_cost , 0 ) , :c_ext_precision ), 
+									 round ( nvl ( mmt.actual_cost , 0 ) , :c_ext_precision ), 
+									 round ( decode ( mta.accounting_line_type , 3 , nvl ( mcacd.actual_cost , 0 ) , 0 ) , :c_ext_precision ), 
+									 round ( mmt.primary_quantity , :P_qty_precision ), 
+									 :C_PRECISION) C_PRICE_VARIANCE 
+									 
+	--Additional By Aries--
+   ,DECODE(round(nvl(mmt.actual_cost,0),:c_ext_precision),0,'NA',((round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision)) - (round(nvl(mmt.actual_cost,0),:c_ext_precision)) - (round(nvl(mmt.actual_cost,0),:c_ext_precision)))/round(nvl(mmt.actual_cost,0),:c_ext_precision) *100)                         PERC_VAR
+   ,DECODE(standard_cost_osp.comp_item_cost,null,null,'YES')      OSP_COMPONENT
+   ,DECODE(standard_cost_osp.comp_item_cost,null,null, round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision) - standard_cost_osp.comp_item_cost)                              PO_OSP_DIFF
+   ,DECODE(standard_cost_osp.comp_item_cost,null,null,(round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision) - standard_cost_osp.comp_item_cost)*round(mmt.primary_quantity,:P_qty_precision))  EXTENDED_OSP
+   ,TRIM(TO_CHAR(round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision),'999G999G999G999G999D000000')) AS      UNIT_PRICE
+   ,TRIM(TO_CHAR(round(nvl(mmt.transaction_cost,0) , :c_ext_precision),'999G999G999G999G999D000000')) AS PO_FUNCTIONAL_PRICE
+   ,DECODE(standard_cost_osp.comp_item_cost,NULL,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula( round ( nvl ( mmt.transaction_cost , 0 ) , :c_ext_precision ), 
+									 round ( nvl ( mmt.actual_cost , 0 ) , :c_ext_precision ), 
+									 round ( decode ( mta.accounting_line_type , 3 , nvl ( mcacd.actual_cost , 0 ) , 0 ) , :c_ext_precision ), 
+									 round ( mmt.primary_quantity , :P_qty_precision ), 
+									 :C_PRECISION),(round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision) - standard_cost_osp.comp_item_cost)*round(mmt.primary_quantity,:P_qty_precision))   ADJUSTED_PPV
+									 
+	--,DECODE(rct.transaction_date <= bom_fom.end_date,'YES','NO')        BOM_FORM
+	,(CASE WHEN rct.transaction_date <= bom_fom.end_date THEN 'YES' ELSE 'NO'   END) AS BOM_FORM
+	 --,DECODE(bom_fom.segment1,NULL,'NO','YES')        BOM_FORM
+	,DECODE(ppv.full_name,NULL,NULL,ppv.full_name)                      CATEGORY_MANAGER
+    ,DECODE(com_mngr.full_name,NULL,NULL,com_mngr.full_name)            COMMODITY_MANAGER
+	,icc_type.catalog_group_x                                           ICC_NAME
+    ,DECODE(msi.stock_enabled_flag,'Y','YES','N','NO',NULL,'NO')        STOCKABLE_FLAG
+	,msi.primary_uom_code              PRIMARY_UOM
+    ,LEGACY_PART_NUM.legacy_x          LEGACY_VALUE              
+    ,preffix.preffix_x                 PREFIX_VALUE    
+    ,suffix.suffix_x                   SUFFIX_VALUE
+	,standard_cost_osp.comp_item_cost  STANDARDCOST_OSP
+	,(SELECT DISTINCT gcc.segment1
+                       ||'.'
+                       ||gcc.segment2
+                       ||'.'
+                       ||gcc.segment3
+                       ||'.'
+                       ||gcc.segment4
+                       ||'.'
+                       ||gcc.segment5
+                       ||'.'
+                       ||gcc.segment6
+                       ||'.'
+                       ||gcc.segment7
+                       ||'.'
+                       ||gcc. segment8
+                     FROM xla_distribution_links dl ,
+                       xla_ae_lines al ,
+                       xla_ae_headers ah ,
+                       gl_code_combinations gcc,
+                       mtl_material_transactions mmta,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh ,
+                       gmf_xla_extract_lines gxel,
+                       mtl_system_items msib
+                     WHERE 1                             =1
+                     AND dl.source_distribution_id_num_1 = gxel.line_id
+                     AND ah.event_id                     = gxel.event_id
+                     AND dl.source_distribution_type     = gxeh.entity_code
+                     AND al.ae_header_id                 = dl.ae_header_id
+                     AND ah.application_id               = dl.application_id
+                     AND al.ae_line_num                  = dl.ae_line_num
+                     AND ah.ae_header_id                 = al.ae_header_id
+                     AND gcc.code_combination_id         = al.code_combination_id
+                     AND al.accounting_class_code        = 'PURCHASE_PRICE_VARIANCE'
+                     AND ah.accounting_entry_status_code = 'F'
+                     AND mp.organization_id              = mmta.organization_id
+                     AND gxeh.transaction_id             = mmta.transaction_id
+                     AND gxeh.organization_id            = mmta.organization_id
+                     AND gxeh.inventory_item_id          = mmta.inventory_item_id
+                       ----------------------------------------------------------------------
+                     AND gxel.header_id       = gxeh.header_id
+                     AND mmta.organization_id = gxel.organization_id
+                     AND gxeh.event_id        = gxel.event_id
+                       ----------------------------------------------------------------------
+                     AND mmta.inventory_item_id = msib.inventory_item_id
+                     AND mmta.organization_id   = msib.organization_id
+                       ----------------------------------------------------------------------
+                     AND msi.inventory_item_id = mmta.inventory_item_id
+                     AND rct.organization_id   = mmta.organization_id
+					 AND rct.transaction_id = mmta.rcv_transaction_id
+					)    ACCOUNT_VALUE 
+
+FROM  po_distributions               pod
+     ,po_line_locations              pll
+     ,po_lines                       pol
+     ,po_headers                     poh
+     ,po_releases                    por
+     ,mtl_material_transactions      mmt
+     ,mtl_transaction_accounts       mta
+     ,mtl_cst_actual_cost_details    mcacd
+     ,mtl_parameters                 mtp
+     ,org_organization_definitions   ood
+     ,rcv_shipment_headers           rsh
+     ,rcv_transactions               rct 
+     ,po_vendors                     pov
+     ,mtl_system_items               msi
+     ,mtl_categories                 mca
+     ,hr_locations_no_join           hrl
+     ,per_all_people_f               papf
+   --Additional  By Aries--
+	 ,icc_type
+	 ,bom_fom
+	 ,legacy_part_num
+	 ,preffix
+	 ,suffix
+	 ,standard_cost_osp
+	 ,per_people_v7 ppv
+	 ,com_mngr
+	 
+WHERE 1=1
+       AND mmt.rcv_transaction_id  = rct.transaction_id
+       AND mmt.organization_id  = rct.organization_id
+       AND mmt.transaction_id    = mta.transaction_id (+)
+       AND mta.accounting_line_type (+) = 3
+       AND mcacd.transaction_id (+) = mmt.transaction_id
+       AND mcacd.organization_id (+) = mmt.organization_id
+       AND mcacd.layer_id (+) = -1
+       AND mcacd.cost_element_id (+) = 2
+       AND mcacd.level_type (+) =  1
+       AND mcacd.transaction_action_id (+) = mmt.transaction_action_id
+       AND mtp.organization_id = rct.organization_id
+       AND mtp.PROCESS_ENABLED_FLAG = 'N' 
+       AND mtp.organization_id 		= ood.organization_id
+       AND rct.shipment_header_id     = rsh.shipment_header_id
+       AND rct.po_line_id             = pol.po_line_id
+       AND rct.po_header_id           = poh.po_header_id 
+       AND rct.po_line_location_id    = pll.line_location_id
+       AND rct.po_distribution_id = pod.po_distribution_id
+       AND pod.line_location_id       = pll.line_location_id
+       AND pod.destination_type_code  = 'INVENTORY'
+       AND pll.po_release_id          = por.po_release_id(+)
+       AND pol.item_id                = msi.inventory_item_id(+)
+       AND msi.organization_id  = :organization_id
+       AND pol.category_id            = mca.category_id
+       AND rsh.vendor_id              = poh.vendor_id
+       AND poh.vendor_id              = pov.vendor_id
+       AND papf.person_id            = poh.agent_id
+       AND PAPF.EMPLOYEE_NUMBER IS NOT NULL 
+       AND TRUNC(SYSDATE) BETWEEN PAPF.EFFECTIVE_START_DATE AND PAPF.EFFECTIVE_END_DATE
+       AND DECODE(HR_SECURITY.VIEW_ALL ,'Y' , 'TRUE', 
+       HR_SECURITY.SHOW_RECORD('PER_ALL_PEOPLE_F',PAPF.PERSON_ID, PAPF.PERSON_TYPE_ID,
+       PAPF.EMPLOYEE_NUMBER,PAPF.APPLICANT_NUMBER )) = 'TRUE' 
+       AND DECODE(HR_GENERAL.GET_XBG_PROFILE,'Y', PAPF.BUSINESS_GROUP_ID ,
+       HR_GENERAL.GET_BUSINESS_GROUP_ID) = PAPF.BUSINESS_GROUP_ID 
+       AND      pod.deliver_to_location_id = hrl.location_id(+) 
+       &P_VENDOR_NAME_WHERE
+       &P_TX_DATE_WHERE
+       AND      &P_WHERE_CAT   
+       AND    ((rct.organization_id = :P_org_id AND :P_org_id is not null)  OR :P_org_id is null )
+       AND  exists (select 1 from mtl_transaction_accounts mta1 where mta1.transaction_id = mmt.transaction_id
+                           and mta1.accounting_line_type = 6)
+       --Additional by Aries--
+       AND   pol.item_id  = suffix.inventory_item_id(+)
+       AND   pol.item_id  = preffix.inventory_item_id(+)
+       AND   pol.item_id  = legacy_part_num.inventory_item_id(+)
+	   AND   pol.item_id = standard_cost_osp.inventory_item_id(+)
+	   AND   pol.item_id = icc_type.inventory_item_id
+	   AND   icc_type.organization_id = mmt.organization_id
+	   AND   pol.category_id  =  com_mngr.category_id(+)
+	   AND   msi.segment1 = bom_fom.segment1(+)
+	   AND ( msi.stock_enabled_flag = DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N')  OR DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N') IS NULL )
+	   AND mtp.organization_code not in ('180','181','182')
+	   AND mca.attribute1 = ppv.person_id(+)
+	   --AND ood.organization_code = bom_fom.organization_code(+)
+       --AND TRUNC(rct.transaction_date) BETWEEN  TRUNC(BOM_FOM.START_DATE) AND TRUNC(BOM_FOM.TRANSACTION_END_DATE)  
+	   
+UNION
+
+SELECT DISTINCT null                               C_FLEX_CAT
+       ,null                               C_FLEX_ITEM
+       ,msi.description                    DESCRIPTION
+       ,pov.vendor_name                    VENDOR
+       ,decode(poh.type_lookup_code,
+               'BLANKET',
+               poh.segment1||' - '||por.release_num,
+               'PLANNED',
+               poh.segment1||' - '||por.release_num,
+               poh.segment1)                      PO_NUMBER_RELEASE
+       ,poh.currency_code                         CURRENCY
+       ,papf.full_name                            BUYER
+       ,pol.line_num                              LINE
+       ,pol.po_header_id||' - '||pol.po_line_id   GROUP_BY_LINEID
+       ,rsh.shipment_num                          SHIPMENT
+       ,rct.transaction_date                      RECEIPT_DATE
+       ,rsh.receipt_num                           RECEIPT_NUMBER
+       ,' '|| ood.organization_code	              ORGANIZATION_CODE
+       ,ood.organization_name				      ORGANIZATION_NAME
+       ,rct.subinventory					      SUBINVENTORY
+       ,round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision) QUANTITY_RECEIVED
+       ,rct.primary_unit_of_measure               UNIT
+       /*,rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) UNIT_PRICE_P
+		,round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) +
+          (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1, pod.quantity_ordered)   )
+          *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision) PO_Functional_Price_P 
+       --,&C_FLEX_CAT_DISP C_FLEX_CAT_DISP
+	   --,&C_FLEX_ITEM_DISP C_FLEX_ITEM_DISP*/
+       ,((round(decode(rct.transaction_type,
+                     'RETURN TO RECEIVING', rct.primary_quantity * -1,
+       	    rct.primary_quantity), :P_qty_precision)) * (rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)))) EX_PO_VALUE
+       , rct.transaction_id                        RCT_ID
+       
+       , round ( &P_select_wip, :c_ext_precision ) STD_UNIT_COST
+       --, ((round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision)) * (round ( &P_select_wip, :c_ext_precision ))) EX_MTLOH_VALUE
+       , ((round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision)) * 0) EX_MTLOH_VALUE
+	   ,0 moh_absorbed_per_unit
+       ,mtp.process_enabled_flag 
+       ,rct.organization_id 
+       ,msi.inventory_item_id
+	   ,mca.segment1 || '.' || mca.segment2 || '.' || mca.segment3 || '.' || mca.segment4  C_FLEX_CAT_DISP
+	   ,msi.segment1   C_FLEX_ITEM_DISP
+       ,round( &P_select_wip, :c_ext_precision ) STD_UNIT_COST_F
+       ,((round(decode(rct.transaction_type,
+                     'RETURN TO RECEIVING', rct.primary_quantity * -1,
+			    rct.primary_quantity), :P_qty_precision)) * (round ( &P_select_wip, :c_ext_precision ))) EX_STD_VALUE
+         , ((rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)))- (round ( &P_select_wip, :c_ext_precision )) - 0) UNIT_PRICE_VAR 
+       ,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula(round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          							   	  (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1,pod.quantity_ordered))
+          							         *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision),
+		  						   round ( &P_select_wip, :c_ext_precision ),
+		  						   0, 
+						 		   round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision), 
+								   :C_PRECISION) C_PRICE_VARIANCE 							   
+	  --Additional by Aries--
+	   ,DECODE(round( &P_select_wip, :c_ext_precision ),0,'NA',((rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity))) - (round ( &P_select_wip, :c_ext_precision )) - (round ( &P_select_wip, :c_ext_precision )))/round( &P_select_wip, :c_ext_precision ) *100)    PERC_VAR
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null,'YES')                              OSP_COMPONENT
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null, rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)   PO_OSP_DIFF
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null,(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)*round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision))  EXTENDED_OSP
+       ,TRIM(TO_CHAR(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)),'999G999G999G999G999D000000')) AS UNIT_PRICE
+       ,TRIM(TO_CHAR(round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) +
+          (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1, pod.quantity_ordered)   )
+          *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision),'999G999G999G999G999D000000')) AS PO_FUNCTIONAL_PRICE
+       ,DECODE(standard_cost_osp.comp_item_cost,NULL,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula(round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          							   	  (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1,pod.quantity_ordered))
+          							         *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision),
+		  						   round ( &P_select_wip, :c_ext_precision ),
+		  						   0, 
+						 		   round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision), 
+								   :C_PRECISION),(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) +
+         ((nvl(pod.nonrecoverable_tax,0)/ decode (pod.quantity_ordered,0,1,pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)*round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision))                  ADJUSTED_PPV
+       --,DECODE(rct.transaction_date <= bom_fom.END_DATE,'YES','NO')        BOM_FORM
+	   --,DECODE(bom_fom.segment1,NULL,'NO','YES')        BOM_FORM
+	   ,(CASE WHEN rct.transaction_date <= bom_fom.end_date THEN 'YES' ELSE 'NO'   END) AS BOM_FORM
+	   ,DECODE(ppv.full_name,NULL,NULL,ppv.full_name)                      CATEGORY_MANAGER
+       ,DECODE(com_mngr.full_name,NULL,NULL,com_mngr.full_name)           COMMODITY_MANAGER
+	   ,icc_type.catalog_group_x                                    ICC_NAME
+       ,DECODE(msi.stock_enabled_flag,'Y','YES','N','NO',NULL,'NO') STOCKABLE_FLAG
+	   ,msi.primary_uom_code                                        PRIMARY_UOM
+       ,LEGACY_PART_NUM.legacy_x                                    LEGACY_VALUE              
+       ,preffix.preffix_x                                           PREFIX_VALUE    
+       ,suffix.suffix_x                                             SUFFIX_VALUE
+	   ,standard_cost_osp.comp_item_cost                            STANDARDCOST_OSP
+	   ,(SELECT DISTINCT gcc.segment1
+                       ||'.'
+                       ||gcc.segment2
+                       ||'.'
+                       ||gcc.segment3
+                       ||'.'
+                       ||gcc.segment4
+                       ||'.'
+                       ||gcc.segment5
+                       ||'.'
+                       ||gcc.segment6
+                       ||'.'
+                       ||gcc.segment7
+                       ||'.'
+                       ||gcc. segment8
+                     FROM xla_distribution_links dl ,
+                       xla_ae_lines al ,
+                       xla_ae_headers ah ,
+                       gl_code_combinations gcc,
+                       mtl_material_transactions mmta,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh ,
+                       gmf_xla_extract_lines gxel,
+                       mtl_system_items msib
+                     WHERE 1                             =1
+                     AND dl.source_distribution_id_num_1 = gxel.line_id
+                     AND ah.event_id                     = gxel.event_id
+                     AND dl.source_distribution_type     = gxeh.entity_code
+                     AND al.ae_header_id                 = dl.ae_header_id
+                     AND ah.application_id               = dl.application_id
+                     AND al.ae_line_num                  = dl.ae_line_num
+                     AND ah.ae_header_id                 = al.ae_header_id
+                     AND gcc.code_combination_id         = al.code_combination_id
+                     AND al.accounting_class_code        = 'PURCHASE_PRICE_VARIANCE'
+                     AND ah.accounting_entry_status_code = 'F'
+                     AND mp.organization_id              = mmta.organization_id
+                     AND gxeh.transaction_id             = mmta.transaction_id
+                     AND gxeh.organization_id            = mmta.organization_id
+                     AND gxeh.inventory_item_id          = mmta.inventory_item_id
+                       ----------------------------------------------------------------------
+                     AND gxel.header_id       = gxeh.header_id
+                     AND mmta.organization_id = gxel.organization_id
+                     AND gxeh.event_id        = gxel.event_id
+                       ----------------------------------------------------------------------
+                     AND mmta.inventory_item_id = msib.inventory_item_id
+                     AND mmta.organization_id   = msib.organization_id
+                       ----------------------------------------------------------------------
+                     AND msi.inventory_item_id = mmta.inventory_item_id
+                     AND rct.organization_id   = mmta.organization_id
+					 AND rct.transaction_id = mmta.rcv_transaction_id
+					)    ACCOUNT_VALUE 
+	    --,DECODE(gl_string_combination.rcv_transaction_id,NULL,NULL,gl_string_combination.gl_string)   ACCOUNT_VALUE
+       
+FROM     po_distributions           pod
+        ,po_line_locations          pll
+        ,po_lines                   pol
+        ,po_headers                 poh
+        ,po_releases                por
+        ,rcv_transactions           rct 
+        ,rcv_shipment_headers       rsh
+        ,po_vendors                 pov
+        ,mtl_system_items           msi
+        ,mtl_categories             mca
+        ,hr_locations_no_join       hrl
+        ,per_all_people_f           papf
+        ,mtl_parameters             mtp
+        ,org_organization_definitions ood
+        &P_from_wip
+        --Additional by Aries--
+	    ,icc_type
+	    ,bom_fom
+	    ,legacy_part_num
+	    ,preffix
+	    ,suffix
+	    ,standard_cost_osp
+	    ,per_people_v7 ppv
+	    ,com_mngr
+	    --,gl_string_combination
+		
+WHERE 1=1
+		AND	rct.shipment_header_id     = rsh.shipment_header_id
+        AND rct.po_line_id             = pol.po_line_id
+        AND rct.po_header_id           = poh.po_header_id
+        AND rct.po_line_location_id    = pll.line_location_id
+        AND pod.line_location_id       = pll.line_location_id
+        AND pod.po_distribution_id   = rct.po_distribution_id
+        AND pod.destination_type_code  = 'SHOP FLOOR'
+        AND pll.po_release_id          = por.po_release_id(+)
+        AND pol.item_id                = msi.inventory_item_id(+)
+        AND msi.organization_id  = :organization_id
+        AND pol.category_id            = mca.category_id
+        AND rsh.vendor_id              = poh.vendor_id
+        AND poh.vendor_id              = pov.vendor_id
+        AND papf.person_id            = poh.agent_id
+        AND PAPF.EMPLOYEE_NUMBER IS NOT NULL 
+        AND TRUNC(SYSDATE) BETWEEN PAPF.EFFECTIVE_START_DATE AND PAPF.EFFECTIVE_END_DATE
+        AND DECODE(HR_SECURITY.VIEW_ALL ,'Y' , 'TRUE', 
+        HR_SECURITY.SHOW_RECORD('PER_ALL_PEOPLE_F',PAPF.PERSON_ID, PAPF.PERSON_TYPE_ID,
+        PAPF.EMPLOYEE_NUMBER,PAPF.APPLICANT_NUMBER )) = 'TRUE' 
+        AND DECODE(HR_GENERAL.GET_XBG_PROFILE,'Y', PAPF.BUSINESS_GROUP_ID ,
+        HR_GENERAL.GET_BUSINESS_GROUP_ID) = PAPF.BUSINESS_GROUP_ID
+        AND      pod.deliver_to_location_id = hrl.location_id(+) 
+        &P_VENDOR_NAME_WHERE
+        &P_TX_DATE_WHERE
+        AND      &P_WHERE_CAT
+        &P_where_wip
+        AND   ( (rct.organization_id = :P_org_id AND :P_org_id is not null)  OR :P_org_id is null )
+        AND mtp.organization_id = rct.organization_id
+        AND mtp.process_enabled_flag='N'
+        AND		 mtp.organization_id 		= ood.organization_id
+        --Additional by Aries--
+		AND   pol.item_id  = suffix.inventory_item_id(+)
+        AND   pol.item_id  = preffix.inventory_item_id(+)
+        AND   pol.item_id  = legacy_part_num.inventory_item_id(+)
+		AND   pol.item_id  = standard_cost_osp.inventory_item_id(+)
+	    AND   pol.item_id = icc_type.inventory_item_id
+		AND   mtp.organization_id = icc_type.organization_id
+		AND   pol.category_id  = com_mngr.category_id(+)
+		AND   msi.segment1 = bom_fom.segment1(+)
+		AND ( msi.stock_enabled_flag = DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N')  OR DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N') IS NULL )
+		AND mtp.organization_code not in ('180','181','182')
+		AND mca.attribute1 = ppv.person_id(+)
+		--AND ood.organization_code = bom_fom.organization_code(+)
+		--AND TRUNC(rct.transaction_date) BETWEEN  TRUNC(BOM_FOM.START_DATE) AND TRUNC(BOM_FOM.TRANSACTION_END_DATE)
+	
+UNION ALL
+
+SELECT DISTINCT  null                              C_FLEX_CAT
+        ,null                              C_FLEX_ITEM
+        ,msi.description                   DESCRIPTION
+        ,pov.vendor_name                   VENDOR
+        ,decode(poh.type_lookup_code,
+                'BLANKET',
+                poh.segment1||' - '||por.release_num,
+                'PLANNED',
+                poh.segment1||' - '||por.release_num,
+                poh.segment1)              PO_NUMBER_RELEASE
+        ,poh.currency_code                 CURRENCY
+        ,papf.full_name                    BUYER
+        ,pol.line_num                      LINE
+        ,pol.po_header_id||' - '||pol.po_line_id   GROUP_BY_LINEID
+        ,rsh.shipment_num                          SHIPMENT
+        ,rct.transaction_date                      RECEIPT_DATE
+        ,rsh.receipt_num                           RECEIPT_NUMBER
+        , ' '|| ood.organization_code	           ORGANIZATION_CODE
+        ,ood.organization_name				       ORGANIZATION_NAME
+        ,rct.subinventory					       SUBINVENTORY
+        ,round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+           'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision) QUANTITY_RECEIVED
+        ,rct.primary_unit_of_measure                UNIT
+        /*,rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity))         UNIT_PRICE_P
+		 ,round(nvl(rct.currency_conversion_rate,1) * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )
+          *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision)               PO_FUNCTIONAL_PRICE_P
+		  --,&C_FLEX_CAT_DISP C_FLEX_CAT_DISP 
+		  --,&C_FLEX_ITEM_DISP C_FLEX_ITEM_DISP*/
+        ,((round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+           'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision)) * (rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity))))                                     EX_PO_VALUE
+        ,rct.transaction_id                        RCT_ID
+        ,0  STD_UNIT_COST
+        ,((round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+           'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision)) * 0) EX_MTLOH_VALUE
+        ,0 MOH_ABSORBED_PER_UNIT
+        ,mtp.process_enabled_flag 
+        ,rct.organization_id 
+        ,msi.inventory_item_id
+		,mca.segment1 || '.' || mca.segment2 || '.' || mca.segment3 || '.' || mca.segment4  C_FLEX_CAT_DISP
+		,msi.segment1   C_FLEX_ITEM_DISP
+        ,PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+								 decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), 
+								  rct.transaction_date, 
+								  mtp.process_enabled_flag, 0 , :C_EXT_PRECISION) STD_UNIT_COST_F
+        ,((round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+		   'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision)) * (PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+								 decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), 
+								  rct.transaction_date, 
+								  mtp.process_enabled_flag, 0 , :C_EXT_PRECISION)))	EX_STD_VALUE							  
+        , ((rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity))) - (PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), rct.transaction_date, mtp.process_enabled_flag, 0 , :C_EXT_PRECISION)) - 0) UNIT_PRICE_VAR
+        ,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula( round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          									(( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1,pod.quantity_ordered))
+          									*(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision), 
+								   PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+										decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id),
+										rct.transaction_date, mtp.process_enabled_flag, 0, :C_EXT_PRECISION), 
+								   0, 
+								   round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision), 
+								   :C_PRECISION) C_PRICE_VARIANCE 
+        	--Additional By Aries--
+	   ,DECODE(PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+								 decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), 
+								  rct.transaction_date, 
+								  mtp.process_enabled_flag, 0 , :C_EXT_PRECISION),0,'NA',((rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+       ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity))) - (PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+								 decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), 
+								  rct.transaction_date, 
+								  mtp.process_enabled_flag, 0 , :C_EXT_PRECISION)) - 0)/PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+								 decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id), 
+								  rct.transaction_date, 
+								  mtp.process_enabled_flag, 0 , :C_EXT_PRECISION) *100)     PERC_VAR
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null,'YES')              OSP_COMPONENT
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null, rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)   PO_OSP_DIFF
+       ,DECODE(standard_cost_osp.comp_item_cost,null,null,(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)*round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+           'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision))  EXTENDED_OSP
+       ,TRIM(TO_CHAR(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)),'999G999G999G999G999D000000')) AS UNIT_PRICE
+       ,TRIM(TO_CHAR(round(nvl(rct.currency_conversion_rate,1) * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          (( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )
+          *(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision),'999G999G999G999G999D000000')) AS PO_FUNCTIONAL_PRICE
+       ,DECODE(standard_cost_osp.comp_item_cost,NULL,PO_POXRCPPV_XMLP_PKG.c_price_varianceformula( round(nvl(rct.currency_conversion_rate,1)  * nvl(rct.po_unit_price* (rct.source_doc_quantity / rct.primary_quantity),0) + 
+          									(( (nvl(pod.nonrecoverable_tax,0) * nvl(rct.currency_conversion_rate,1))/decode (pod.quantity_ordered,0,1,pod.quantity_ordered))
+          									*(rct.source_doc_quantity/rct.primary_quantity)), :c_ext_precision), 
+								   PO_POXRCPPV_XMLP_PKG.std_unit_cost_fformula(msi.inventory_item_id, 
+										decode(mtp.process_enabled_flag, 'Y', rct.organization_id, :organization_id),
+										rct.transaction_date, mtp.process_enabled_flag, 0, :C_EXT_PRECISION), 
+								   0, 
+								   round(decode(rct.transaction_type,'RETURN TO RECEIVING', rct.primary_quantity * -1,rct.primary_quantity), :P_qty_precision), 
+								   :C_PRECISION),(rct.po_unit_price  * (rct.source_doc_quantity / rct.primary_quantity ) + 
+          ((nvl(pod.nonrecoverable_tax,0)/decode (pod.quantity_ordered,0,1, pod.quantity_ordered) )*(rct.source_doc_quantity/rct.primary_quantity)) - standard_cost_osp.comp_item_cost)*round(decode(rct.transaction_type , 'RETURN TO RECEIVING'  , rct.primary_quantity * -1 ,
+           'RETURN TO  VENDOR',rct.primary_quantity * -1, rct.primary_quantity) , :P_qty_precision))   ADJUSTED_PPV
+       --,DECODE(rct.transaction_date <= bom_fom.END_DATE,'YES','NO')        BOM_FORM
+       --,DECODE(bom_fom.segment1,NULL,'NO','YES')        BOM_FORM
+	   ,(CASE WHEN rct.transaction_date <= bom_fom.end_date THEN 'YES' ELSE 'NO'   END) AS BOM_FORM
+	   ,DECODE(ppv.full_name,NULL,NULL,ppv.full_name)                      CATEGORY_MANAGER
+       ,DECODE(com_mngr.full_name,NULL,NULL,com_mngr.full_name)           COMMODITY_MANAGER
+       ,icc_type.catalog_group_x                                       ICC_NAME
+	   --, (msi.inventory_item_id||' - '||rct.organization_id||' - '||msi.segment1||' - '||rct.transaction_id)           ICC_NAME
+       ,DECODE(msi.stock_enabled_flag,'Y','YES','N','NO',NULL,'NO')    STOCKABLE_FLAG
+	   ,msi.primary_uom_code                                           PRIMARY_UOM
+       ,LEGACY_PART_NUM.legacy_x                                       LEGACY_VALUE              
+       ,preffix.preffix_x                                              PREFIX_VALUE    
+       ,suffix.suffix_x                                                SUFFIX_VALUE
+       ,standard_cost_osp.comp_item_cost                               STANDARDCOST_OSP
+   	   ,(SELECT DISTINCT gcc.segment1
+                       ||'.'
+                       ||gcc.segment2
+                       ||'.'
+                       ||gcc.segment3
+                       ||'.'
+                       ||gcc.segment4
+                       ||'.'
+                       ||gcc.segment5
+                       ||'.'
+                       ||gcc.segment6
+                       ||'.'
+                       ||gcc.segment7
+                       ||'.'
+                       ||gcc. segment8
+                     FROM xla_distribution_links dl ,
+                       xla_ae_lines al ,
+                       xla_ae_headers ah ,
+                       gl_code_combinations gcc,
+                       mtl_material_transactions mmta,
+                       mtl_parameters mp ,
+                       gmf_xla_extract_headers gxeh ,
+                       gmf_xla_extract_lines gxel,
+                       mtl_system_items msib
+                     WHERE 1                             =1
+                     AND dl.source_distribution_id_num_1 = gxel.line_id
+                     AND ah.event_id                     = gxel.event_id
+                     AND dl.source_distribution_type     = gxeh.entity_code
+                     AND al.ae_header_id                 = dl.ae_header_id
+                     AND ah.application_id               = dl.application_id
+                     AND al.ae_line_num                  = dl.ae_line_num
+                     AND ah.ae_header_id                 = al.ae_header_id
+                     AND gcc.code_combination_id         = al.code_combination_id
+                     AND al.accounting_class_code        = 'PURCHASE_PRICE_VARIANCE'
+                     AND ah.accounting_entry_status_code = 'F'
+                     AND mp.organization_id              = mmta.organization_id
+                     AND gxeh.transaction_id             = mmta.transaction_id
+                     AND gxeh.organization_id            = mmta.organization_id
+                     AND gxeh.inventory_item_id          = mmta.inventory_item_id
+                       ----------------------------------------------------------------------
+                     AND gxel.header_id       = gxeh.header_id
+                     AND mmta.organization_id = gxel.organization_id
+                     AND gxeh.event_id        = gxel.event_id
+                       ----------------------------------------------------------------------
+                     AND mmta.inventory_item_id = msib.inventory_item_id
+                     AND mmta.organization_id   = msib.organization_id
+                       ----------------------------------------------------------------------
+                     AND msi.inventory_item_id = mmta.inventory_item_id
+                     AND rct.organization_id   = mmta.organization_id
+					 AND rct.transaction_id = mmta.rcv_transaction_id
+					)    ACCOUNT_VALUE    
+	   
+			   
+FROM     po_distributions           pod
+        ,po_line_locations          pll
+        ,po_lines                   pol
+        ,po_headers                 poh
+        ,po_releases                por
+        ,rcv_shipment_headers       rsh
+        ,rcv_transactions           rct 
+        ,po_vendors                 pov
+        ,mtl_system_items           msi
+        ,mtl_categories             mca
+        ,hr_locations_no_join       hrl 
+        ,per_all_people_f           papf
+        ,mtl_parameters		        mtp
+        ,org_organization_definitions ood
+        --Additional by Aries--
+	    ,icc_type
+	    ,bom_fom
+	    ,legacy_part_num
+	    ,preffix
+	    ,suffix
+	    ,standard_cost_osp
+	    ,per_people_v7 ppv
+	    ,com_mngr
+		--,gl_string_combination
+		
+WHERE 1=1
+        AND rct.shipment_header_id     = rsh.shipment_header_id
+        AND rct.po_line_id             = pol.po_line_id
+        AND rct.po_header_id           = poh.po_header_id 
+        AND rct.po_line_location_id    = pll.line_location_id
+        AND rct.po_distribution_id     = pod.po_distribution_id
+        AND pod.line_location_id       = pll.line_location_id
+        AND NVL(pll.lcm_flag,'N')      = 'N'
+        AND pod.destination_type_code  IN ('INVENTORY','SHOP FLOOR')
+        AND rct.destination_type_code  <> 'RECEIVING' 
+        AND pll.po_release_id          = por.po_release_id(+)
+        AND pol.item_id                = msi.inventory_item_id(+)
+        AND msi.organization_id        = :organization_id
+        AND pol.category_id            = mca.category_id
+        AND rsh.vendor_id              = poh.vendor_id
+        AND poh.vendor_id              = pov.vendor_id
+        AND papf.person_id             = poh.agent_id
+        AND PAPF.EMPLOYEE_NUMBER IS NOT NULL 
+        AND TRUNC(SYSDATE) BETWEEN PAPF.EFFECTIVE_START_DATE AND PAPF.EFFECTIVE_END_DATE
+        AND DECODE(HR_SECURITY.VIEW_ALL ,'Y' , 'TRUE', 
+        HR_SECURITY.SHOW_RECORD('PER_ALL_PEOPLE_F',PAPF.PERSON_ID, PAPF.PERSON_TYPE_ID,
+        PAPF.EMPLOYEE_NUMBER,PAPF.APPLICANT_NUMBER )) = 'TRUE' 
+        AND DECODE(HR_GENERAL.GET_XBG_PROFILE,'Y', PAPF.BUSINESS_GROUP_ID ,
+        HR_GENERAL.GET_BUSINESS_GROUP_ID) = PAPF.BUSINESS_GROUP_ID 
+        AND      pod.deliver_to_location_id = hrl.location_id(+) 
+        &P_VENDOR_NAME_WHERE
+        &P_TX_DATE_WHERE
+        AND      &P_WHERE_CAT   
+        AND     ( (rct.organization_id = :P_org_id AND :p_org_id is not null)  OR :P_org_id is null )
+        AND       rct.organization_id = mtp.organization_id
+        AND		 mtp.organization_id 		= ood.organization_id
+        AND      mtp.process_enabled_flag = 'Y'
+		
+        --Additional by Aries--
+        AND   pol.item_id  = suffix.inventory_item_id(+)
+        AND   pol.item_id  = preffix.inventory_item_id(+)
+        AND   pol.item_id  = legacy_part_num.inventory_item_id(+)
+		AND   pol.item_id  = standard_cost_osp.inventory_item_id(+)
+	    AND   pol.item_id = icc_type.inventory_item_id
+		AND   mtp.organization_id = icc_type.organization_id
+		AND   pol.category_id  = com_mngr.category_id(+)
+		AND   msi.segment1 = bom_fom.segment1(+)
+		AND ( msi.stock_enabled_flag = DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N')  OR DECODE(:P_ITEM_TYPE,'Inventory Item','Y','Expense Item','N') IS NULL )
+		AND mtp.organization_code not in ('180','181','182')
+		AND mca.attribute1 = ppv.person_id(+)
+		--AND ood.organization_code = bom_fom.organization_code(+)
+		--AND TRUNC(rct.transaction_date) BETWEEN  TRUNC(BOM_FOM.START_DATE) AND TRUNC(BOM_FOM.TRANSACTION_END_DATE)
+		
+]]>
+		</sqlStatement>
+
+		<sqlStatement name="Q_COO_PPV">
+			<![CDATA[
+select   
+        null         		C_FLEX_CAT,
+        null        		C_FLEX_ITEM,
+        msi.description             		Description,
+        pov.vendor_name             		Vendor,
+        poh.segment1                               	PO_Number,
+        poh.po_header_id                group_by_lineid, 
+        papf.full_name			Buyer,
+        poh.currency_code          		Currency,
+        round(mmt.primary_quantity,:P_qty_precision) Quantity_Received,
+        msi.primary_unit_of_measure 	Unit,
+        round((nvl(mmt.transaction_cost,0)/nvl(mmt.currency_conversion_rate,1)),:c_ext_precision) PO_Unit_Price,
+        round(nvl(mmt.transaction_cost,0),:c_ext_precision) PO_Functional_Price,
+        round(nvl(mmt.actual_cost,0),:c_ext_precision) STD_Unit_Cost,        
+        round(decode(mta.accounting_line_type, 3, nvl(mcacd.actual_cost,0), 0) ,:c_ext_precision) moh_absorbed_per_unit,
+        mmt.transaction_id, 
+    	  &C_FLEX_CAT_DISP C_FLEX_CAT_DISP1, 
+	  &C_FLEX_ITEM_DISP C_Flex_Item_Disp1, 
+	  PO_POXRCPPV_XMLP_PKG.c_price_variance1formula(
+		round ( nvl ( mmt.transaction_cost , 0 ) , :c_ext_precision ), 
+		round ( nvl ( mmt.actual_cost , 0 ) , :c_ext_precision ), 
+		round ( decode ( mta.accounting_line_type , 3 , nvl ( mcacd.actual_cost , 0 ) , 0 ) , :c_ext_precision ),
+	      round ( mmt.primary_quantity , :P_qty_precision ), :C_PRECISION) C_Price_Variance1
+from    mtl_system_items msi,
+            mtl_categories mca,
+            mtl_item_categories mic,
+            mtl_default_category_sets mdcs,
+            mtl_material_transactions mmt,
+            po_vendors pov,
+            po_headers poh,
+            per_all_people_f papf,
+            mtl_transaction_accounts mta,
+            mtl_cst_actual_cost_details mcacd,
+            mtl_parameters mtp 
+where   
+         msi.inventory_item_id = mmt.inventory_item_id
+and     msi.organization_id = :organization_id
+and     mmt.organization_id = nvl(:P_org_id, mmt.organization_id)
+and     mmt.organization_id = mtp.organization_id 
+and     mtp.process_enabled_flag = 'N' 
+and     mic.inventory_item_id = msi.inventory_item_id
+and     mic.organization_id = msi.organization_id
+and     mic.category_set_id = mdcs.category_set_id
+and     mdcs.functional_area_id = 2
+and     mic.category_id = mca.category_id
+and     mta.transaction_id (+) = mmt.transaction_id
+and     mta.accounting_line_type (+) = 3
+and     mcacd.transaction_id (+) = mmt.transaction_id
+and     mcacd.organization_id (+) = mmt.organization_id
+and     mcacd.layer_id (+) = -1
+and     mcacd.cost_element_id (+) = 2
+and     mcacd.level_type (+) = 1
+and     mcacd.transaction_action_id (+) = mmt.transaction_action_id
+and     mmt.transaction_action_id = 6
+and     mmt.transaction_source_id = poh.po_header_id
+and     poh.vendor_id = pov.vendor_id
+AND   papf.person_id = poh.agent_id
+AND   PAPF.EMPLOYEE_NUMBER IS NOT NULL 
+AND   TRUNC(SYSDATE) BETWEEN PAPF.EFFECTIVE_START_DATE AND PAPF.EFFECTIVE_END_DATE
+AND   DECODE(HR_SECURITY.VIEW_ALL ,'Y' , 'TRUE', 	
+	  HR_SECURITY.SHOW_RECORD('PER_ALL_PEOPLE_F',
+                     PAPF.PERSON_ID, PAPF.PERSON_TYPE_ID, PAPF.EMPLOYEE_NUMBER,
+                     PAPF.APPLICANT_NUMBER)) = 'TRUE'
+AND   DECODE(HR_GENERAL.GET_XBG_PROFILE,'Y', PAPF.BUSINESS_GROUP_ID ,
+                     HR_GENERAL.GET_BUSINESS_GROUP_ID) = PAPF.BUSINESS_GROUP_ID
+&P_VENDOR_NAME_WHERE
+&P_MTL_TX_DATE_WHERE
+and     &P_WHERE_CAT
+and     exists (select 1 from mtl_transaction_accounts mta1 where mta1.transaction_id = mmt.transaction_id
+	 and mta1.accounting_line_type =6)
+]]>
+		</sqlStatement>
+
+		<sqlStatement name="Q_LCM_Pos">
+			<![CDATA[
+SELECT 
+ null C_FLEX_CAT
+,        null                              C_FLEX_ITEM
+,        msi.description                           Description
+,        pov.vendor_name                           Vendor
+,        decode(poh.type_lookup_code,
+                'BLANKET',
+                poh.segment1||' - '||por.release_num,
+                'PLANNED',
+                poh.segment1||' - '||por.release_num,
+                poh.segment1)                      PO_Number_Release
+,        poh.currency_code                         Currency
+,        papf.full_name                             Buyer
+,        pol.line_num                              Line
+,        pol.po_header_id||' - '||pol.po_line_id          group_by_lineid
+,        rsh.shipment_num                          Shipment
+,        rct.transaction_date                      Receipt_Date
+,        rsh.receipt_num                    Receipt_Number
+,        round(rct.primary_quantity,:P_qty_precision) Quantity_Received
+,        rct.primary_unit_of_measure                       Unit
+,        round((rct.UNIT_PRICE) ,:c_ext_precision) Landed_Cost
+,        round((rct.UNIT_PRICE) * rct.CURRENCY_CONVERSION_RATE,:c_ext_precision)       Functional_Landed_cost
+,        round((rct.PRIOR_UNIT_PRICE) * rct.CURRENCY_CONVERSION_RATE,:c_ext_precision) Prior_Landed_Cost
+,        rct.organization_id
+,        msi.inventory_item_id
+,	   PO_POXRCPPV_XMLP_PKG.c_price_varianceformula_lcm(
+				nvl(round((rct.UNIT_PRICE) * rct.CURRENCY_CONVERSION_RATE, :c_ext_precision), 0), 
+				nvl(round((rct.PRIOR_UNIT_PRICE) * rct.CURRENCY_CONVERSION_RATE, :c_ext_precision), 0), 
+				round(rct.primary_quantity, :P_qty_precision), :C_PRECISION) C_Price_Variance
+, 	&C_FLEX_CAT_DISP C_FLEX_CAT_DISP
+,	&C_FLEX_ITEM_DISP C_FLEX_ITEM_DISP
+FROM     po_line_locations          pll
+,        po_lines                   pol
+,        po_headers                 poh
+,        po_releases                por
+,        RCV_ACCOUNTING_EVENTS rct
+,        mtl_parameters               mtp
+,        rcv_shipment_headers       rsh
+,        rcv_transactions           rt 
+,        po_vendors                 pov
+,        mtl_system_items           msi
+,        mtl_categories             mca
+,       per_all_people_f             papf
+WHERE rct.rcv_transaction_id  = rt.transaction_id
+AND      rct.organization_id  = rt.organization_id
+AND rct.event_type_id = 16
+AND      mtp.organization_id = rct.organization_id
+AND      mtp.PROCESS_ENABLED_FLAG = 'N' -- INVCONV
+AND      rt.shipment_header_id     = rsh.shipment_header_id
+AND      rct.po_line_id             = pol.po_line_id
+AND      rct.po_header_id           = poh.po_header_id 
+AND      rct.po_line_location_id    = pll.line_location_id
+AND      pll.po_release_id          = por.po_release_id(+)
+AND      pol.item_id                = msi.inventory_item_id(+)
+AND      msi.organization_id  = :organization_id
+AND      pol.category_id            = mca.category_id
+AND      rsh.vendor_id              = poh.vendor_id
+AND      poh.vendor_id              = pov.vendor_id
+AND      papf.person_id            = poh.agent_id
+AND  PAPF.EMPLOYEE_NUMBER IS NOT NULL 
+AND TRUNC(SYSDATE) BETWEEN PAPF.EFFECTIVE_START_DATE AND PAPF.EFFECTIVE_END_DATE
+AND DECODE(HR_SECURITY.VIEW_ALL ,'Y' , 'TRUE', 
+HR_SECURITY.SHOW_RECORD('PER_ALL_PEOPLE_F',PAPF.PERSON_ID, PAPF.PERSON_TYPE_ID,
+PAPF.EMPLOYEE_NUMBER,PAPF.APPLICANT_NUMBER )) = 'TRUE' 
+AND DECODE(HR_GENERAL.GET_XBG_PROFILE,'Y', PAPF.BUSINESS_GROUP_ID ,
+HR_GENERAL.GET_BUSINESS_GROUP_ID) = PAPF.BUSINESS_GROUP_ID
+&P_VENDOR_NAME_WHERE
+&P_TX_DATE_WHERE
+AND  &P_WHERE_CAT   
+AND    ((rct.organization_id = :P_org_id AND :P_org_id is not null)  OR :P_org_id is null )
+
+]]>
+		</sqlStatement>
+	</dataQuery>
+	<dataStructure>
+<group name="G_comtpny" dataType="varchar2" source="Q_comtpny">
+			<element name="c_comtpny" dataType="varchar2" value="C_COmtpNY" />
+			<element name="c_organization_id" dataType="number" value="C_ORGANIZATION_ID" />
+			<element name="GL_CURRENCY" dataType="varchar2" value="GL_CURRENCY" />
+			<element name="STRUCTURE_ACC" dataType="number" value="STRUCTURE_ACC" />
+			<element name="STRUCTURE_CAT" dataType="number" value="STRUCTURE_CAT" />
+			<element name="c_yes" dataType="varchar2" value="C_YES" />
+			<element name="c_no" dataType="varchar2" value="C_NO" />
+			<element name="c_category_set_id" dataType="number" value="C_CATEGORY_SET_ID" />
+			<element name="c_precision" dataType="number" value="C_PRECISION" />
+			<element name="c_ext_precision" dataType="number" value="C_EXT_PRECISION" />
+	<group name="G_Category" dataType="varchar2" source="Q_Pos">
+          <element name="C_FLEX_CAT" dataType="varchar2" value="C_FLEX_CAT" />
+          <element name="C_FLEX_CAT_DISP" dataType="varchar2" value="C_FLEX_CAT_DISP" />
+          <element name="C_FLEX_ITEM" dataType="varchar2" value="C_FLEX_ITEM" />
+          <element name="C_FLEX_ITEM_DISP" dataType="varchar2" value="C_FLEX_ITEM_DISP" />
+          <element name="Description" dataType="varchar2" value="DESCRIPTION" />
+          <element name="Vendor" dataType="varchar2" value="VENDOR" />
+          <element name="Buyer" dataType="varchar2" value="BUYER" />
+          <element name="PO_Number_Release" dataType="varchar2" value="PO_NUMBER_RELEASE" />
+          <element name="Currency1" dataType="varchar2" value="CURRENCY" />
+          <element name="Line" dataType="number" value="LINE" />
+          <element name="GROUP_BY_LINEID" dataType="varchar2" value="group_by_lineid" />
+          <element name="organization_id1" dataType="number" value="ORGANIZATION_ID" />
+          <element name="inventory_item_id" dataType="number" value="INVENTORY_ITEM_ID" />
+          <element name="moh_absorbed_per_unit" dataType="number" value="MOH_ABSORBED_PER_UNIT" />
+          <element name="C_overhead_absorbed_Disp" dataType="varchar2" value="MOH_ABSORBED_PER_UNIT" />
+          <element name="Shipment" dataType="varchar2" value="SHIPMENT" />
+          <element name="Receipt_Date" dataType="date" value="RECEIPT_DATE" />
+          <element name="Receipt_Number" dataType="varchar2" value="RECEIPT_NUMBER" />
+		  <element name="organization_code" dataType="varchar2" value="ORGANIZATION_CODE" />
+		  <element name="organization_name" dataType="varchar2" value="ORGANIZATION_NAME" />
+		  <element name="subinventory" dataType="varchar2" value="SUBINVENTORY" />
+          <element name="Quantity_Received" dataType="number" value="QUANTITY_RECEIVED" />
+          <element name="Unit" dataType="varchar2" value="UNIT" />
+          <element name="STD_UNIT_COST" dataType="number" value="STD_UNIT_COST" />
+		  <element name="ex_mtloh_value" dataType="number" value="EX_MTLOH_VALUE" />
+          <element name="process_enabled_flag" dataType="varchar2" value="PROCESS_ENABLED_FLAG" />
+          <element name="STD_UNIT_COST_F" dataType="number" value="STD_UNIT_COST_F" />
+		   <element name="PERC_VAR" dataType="number" value="PERC_VAR" />
+		  <element name="PRIMARY_UOM" dataType="varchar2" value="PRIMARY_UOM" />
+		  <element name="LEGACY_VALUE" dataType="number" value="LEGACY_VALUE" />
+		  <element name="PREFIX_VALUE" dataType="varchar2" value="PREFIX_VALUE" />
+		  <element name="SUFFIX_VALUE" dataType="varchar2" value="SUFFIX_VALUE" />
+		  <element name="ex_std_value" dataType="number" value="ex_std_value" />
+		  <element name="EXTENDED_OSP" dataType="number" value="EXTENDED_OSP" />
+		  <element name="PO_OSP_DIFF" dataType="number" value="PO_OSP_DIFF" />
+          <element name="Unit_Price" dataType="number" value="UNIT_PRICE" />
+		  <element name="OSP_COMPONENT" dataType="varchar2" value="OSP_COMPONENT" />
+		  <element name="STANDARDCOST_OSP" dataType="number" value="STANDARDCOST_OSP" />
+		  <element name="ACCOUNT_VALUE" dataType="varchar2" value="ACCOUNT_VALUE" />
+		  <element name="STOCKABLE_FLAG" dataType="varchar2" value="STOCKABLE_FLAG" />
+		  <element name="BOM_FORM" dataType="varchar2" value="BOM_FORM" />
+		  <element name="ICC_NAME" dataType="varchar2" value="ICC_NAME" />
+		  <element name="CATEGORY_MANAGER" dataType="varchar2" value="CATEGORY_MANAGER" />
+          <element name="COMMODITY_MANAGER" dataType="varchar2" value="COMMODITY_MANAGER" /> 		  
+		  <element name="ADJUSTED_PPV" dataType="number" value="ADJUSTED_PPV" />
+		  <element name="ex_po_value" dataType="number" value="EX_PO_VALUE" />
+          <element name="PO_Functional_Price" dataType="number" value="PO_FUNCTIONAL_PRICE" />
+		  <element name="unit_price_var" dataType="number" value="UNIT_PRICE_VAR" />
+          <element name="C_Price_Variance" dataType="number" value="C_Price_Variance" />
+          <element name="RCT_ID" dataType="number" value="RCT_ID" />
+		  
+	</group>
+      
+	<group name="G_LCM_Category" dataType="varchar2" source="Q_LCM_Pos">
+          <element name="C_FLEX_CAT" dataType="varchar2" value="C_FLEX_CAT" />
+          <element name="C_FLEX_CAT_DISP" dataType="varchar2" value="C_FLEX_CAT_DISP" />
+          <element name="C_FLEX_ITEM" dataType="varchar2" value="C_FLEX_ITEM" />
+          <element name="C_FLEX_ITEM_DISP" dataType="varchar2" value="C_FLEX_ITEM_DISP" />
+          <element name="Description" dataType="varchar2" value="DESCRIPTION" />
+          <element name="Vendor" dataType="varchar2" value="VENDOR" />
+          <element name="Buyer" dataType="varchar2" value="BUYER" />
+          <element name="PO_Number_Release" dataType="varchar2" value="PO_NUMBER_RELEASE" />
+          <element name="Currency1" dataType="varchar2" value="CURRENCY" />
+          <element name="Line" dataType="number" value="LINE" /> 
+          <element name="GROUP_BY_LINEID" dataType="varchar2" value="group_by_lineid" />
+          <element name="organization_id1" dataType="number" value="ORGANIZATION_ID" />
+          <element name="inventory_item_id" dataType="number" value="INVENTORY_ITEM_ID" />
+          <element name="Shipment" dataType="varchar2" value="SHIPMENT" />
+          <element name="Receipt_Date" dataType="date" value="RECEIPT_DATE" />
+          <element name="Receipt_Number" dataType="varchar2" value="RECEIPT_NUMBER" />
+          <element name="Quantity_Received" dataType="number" value="QUANTITY_RECEIVED" />
+          <element name="Unit" dataType="varchar2" value="UNIT" />
+          <element name="Prior_Landed_Cost" dataType="number" value="PRIOR_LANDED_COST" />
+          <element name="Landed_Cost" dataType="number" value="LANDED_COST" />
+          <element name="Functional_Landed_Cost" dataType="number" value="FUNCTIONAL_LANDED_COST" />
+          <element name="C_Price_Variance_lcm" dataType="number" value="C_Price_Variance" />
+          <element name="RCT_ID" dataType="number" value="RCT_ID" />
+      </group>
+							
+	<group name="G_COO_Category" dataType="varchar2" source="Q_COO_PPV">
+          <element name="C_FLEX_CAT1" dataType="varchar2" value="C_FLEX_CAT" />
+          <element name="C_FLEX_CAT_DISP1" dataType="varchar2" value="C_FLEX_CAT_DISP1" />
+          <element name="C_FLEX_ITEM1" dataType="varchar2" value="C_FLEX_ITEM" />
+          <element name="C_Flex_Item_Disp1" dataType="varchar2" value="C_Flex_Item_Disp1" />
+          <element name="Description1" dataType="varchar2" value="DESCRIPTION" />
+          <element name="Vendor1" dataType="varchar2" value="VENDOR" />
+          <element name="Buyer1" dataType="varchar2" value="BUYER" />
+          <element name="PO_Number" dataType="varchar2" value="PO_NUMBER" />
+          <element name="GROUP_BY_LINEID" dataType="varchar2" value="group_by_lineid" />
+          <element name="Currency2" dataType="varchar2" value="CURRENCY" />
+          <element name="moh_absorbed_per_unit1" dataType="number" value="MOH_ABSORBED_PER_UNIT" />
+          <element name="transaction_id" dataType="number" value="TRANSACTION_ID" />
+          <element name="PO_Functional_Price1" dataType="number" value="PO_FUNCTIONAL_PRICE" />
+          <element name="STD_Unit_Cost1" dataType="number" value="STD_UNIT_COST" />
+          <element name="Quantity_Received1" dataType="number" value="QUANTITY_RECEIVED" />
+          <element name="PO_Unit_Price" dataType="number" value="PO_UNIT_PRICE" />
+          <element name="C_Price_Variance_coo" dataType="number" value="C_Price_Variance1" />
+          <element name="C_Overhead_absorbed_Disp1" dataType="varchar2" value="MOH_ABSORBED_PER_UNIT" />
+          <element name="Unit1" dataType="varchar2" value="UNIT" />
+	</group>
+     
+		<element name="comtpny" function="first" dataType="varchar2" value="G_comtpny.c_comtpny" />
+		<element name="yes" function="first" dataType="varchar2" value="G_comtpny.c_yes" />
+		<element name="organization_id" function="first" dataType="varchar2" value="G_comtpny.c_organization_id" />
+		<element name="select_wip" dataType="varchar2" valueIfNull="0" value="PO_POXRCPPV_XMLP_PKG.get_std_unit_cost()" />
+		<element name="from_wip" dataType="varchar2" value="PO_POXRCPPV_XMLP_PKG.from_std_unitcost()" />
+		<element name="where_wip" dataType="varchar2" valueIfNull="and 1 = 2" value="PO_POXRCPPV_XMLP_PKG.where_std_unit_cost()" />
+		<element name="no" function="first" dataType="varchar2" value="G_comtpny.c_no" />
+		<element name="category_set_id" function="first" dataType="varchar2" value="G_comtpny.c_category_set_id" />
+		<element name="orderby_clause" dataType="varchar2" valueIfNull=":P_ORDERBY_CAT" value="PO_POXRCPPV_XMLP_PKG.orderby_clauseformula()" />
+		<element name="BASE_CURRENCY" function="first" dataType="varchar2" value="G_comtpny.GL_CURRENCY" />
+</group>
+    
+</dataStructure>
+	<dataTrigger name="afterReportTrigger" source="PO_POXRCPPV_XMLP_PKG.afterreport()" />
+</dataTemplate>

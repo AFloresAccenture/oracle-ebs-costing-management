@@ -1,0 +1,73 @@
+#!/bin/bash
+
+###########################################################################################################################
+##Script Name: XXNBTYEXT02.prog
+##Created By   : Albert John Flores
+##Date Created : 09-Sept-2016
+##Descriptions : UNIX script for EXT02 - program to load data and archive the flat files
+##               
+##	Maintenance History:																							
+##																													
+##	Date			Issue#		Name						Remarks																
+##	-----------		------		--------------------		------------------------------------------------					
+##	09-Sept-2016				Albert John Flores			Initial Development		
+##  																									
+##	
+###########################################################################################################################
+
+#DEFAULT PARAMETER                                                                                                                                                                                                                                                                                           
+user_pwd=$1                                                                                                                                                                                                                                                                                                  
+user_id=$2                                                                                                                                                                                                                                                                                                   
+user_name=$3                                                                                                                                                                                                                                                                                                 
+request_id=$4 
+
+p_incoming="$5";
+p_archive="$6";
+
+incoming=$p_incoming;
+archive=$p_archive;
+username=$p_user;
+APPS_LOGIN="$FCP_LOGIN";
+AppsName="XXNBTY";
+
+control_file_dir=$XXNBTY_TOP/bin
+
+ctl_file_name_a=opm_ext02_a.ctl 
+ctl_file_name_b=opm_ext02_b.ctl 
+
+arc_cost=${p_archive}/${p_cost_arch}
+arc_intrans=${p_archive}/${p_intransit_arch}
+
+create_file=XXNBTY_CREATE_PROCESS_OPERATION*.csv
+update_file=XXNBTY_UPDATE_PROCESS_OPERATION*.csv
+
+crt_file=$incoming/${create_file}
+upd_file=$incoming/${update_file}
+#call the sqlldr program
+cd $incoming
+
+echo "Calling SQL Loader Program"  
+
+cat XXNBTY_CREATE_PROCESS_OPERATION*.csv > $incoming/Create.csv
+cat XXNBTY_UPDATE_PROCESS_OPERATION*.csv > $incoming/Update.csv
+
+chmod 777 $create_file
+chmod 777 $update_file
+
+
+sqlldr $1 control=$control_file_dir/${ctl_file_name_a} data=$incoming/Create.csv log=$archive/${ctl_file_name_a}.log bad=$archive/${ctl_file_name_a}.bad discard=$archive/${ctl_file_name_a}.dis
+
+sqlldr $1 control=$control_file_dir/${ctl_file_name_b} data=$incoming/Update.csv log=$archive/${ctl_file_name_b}.log bad=$archive/${ctl_file_name_b}.bad discard=$archive/${ctl_file_name_b}.dis
+
+#remove the original files
+cd $incoming
+cp -f XXNBTY_CREATE_PROCESS_OPERATION*  $archive
+cp -f XXNBTY_UPDATE_PROCESS_OPERATION*  $archive
+
+rm XXNBTY_CREATE_PROCESS_OPERATION*
+rm XXNBTY_UPDATE_PROCESS_OPERATION*
+
+rm $incoming/Create.csv
+rm $incoming/Update.csv
+
+exit 0

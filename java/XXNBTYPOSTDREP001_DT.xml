@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- $Header: XXNBTY_PO_INVPRICEVAR_RPT.xml 120.1 2013/07/16 02:45:26 jan.michael.c.cuales $ -->
+<!-- GSCC_Category="Xdo Data Definition" -->
+
+<dataTemplate name="XXNBTY_PO_INVPRICEVAR_RPT" version="1.0">
+<!--  
+ *  File           : XXNBTY_PO_INVPRICEVAR_RPT.xml
+ *  Author         : Jan Michael Cuales, Accenture
+ *  Date           Author                    Description
+ *  ____________________________________________________________________________________________________
+ *  2016-APR-11    Jan Michael Cuales        Initial Creation
+
+-->
+<properties>
+<property name="xml_tag_case" value="upper" />
+</properties>
+<parameters>
+<parameter name="P_TITLE" dataType = "character"></parameter>
+<parameter name="P_ORG_ID" dataType = "number"></parameter>
+<parameter name="P_STRUCT_NUM" dataType = "number"></parameter>
+<parameter name="P_ITEM_STRUCT_NUM" dataType = "number" defaultValue="101"></parameter>
+<parameter name="P_ITEM_FROM" dataType = "character"></parameter>
+<parameter name="P_ITEM_TO" dataType = "character"></parameter>
+<parameter name="P_CATEGORY_TO" dataType = "character"></parameter>
+<parameter name="P_CATEGORY_FROM" dataType = "character"></parameter>
+<parameter name="P_VENDOR_FROM" dataType = "character"></parameter>
+<parameter name="P_VENDOR_TO" dataType = "character"></parameter>
+<parameter name="P_PO_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_PO_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_RECEIPT_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_RECEIPT_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_REQ_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_SHIP_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_REQ_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_SHIP_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_TRX_DATE_FROM" dataType = "date"></parameter>
+<parameter name="P_TRX_DATE_TO" dataType = "date"></parameter>
+<parameter name="P_RECEIVER" dataType = "character"></parameter>
+<parameter name="P_TRX_TYPE" dataType = "character"></parameter>
+<parameter name="P_BUYER" dataType = "character"></parameter>
+<parameter name="P_INC_LOT_AND_SERIAL" dataType = "character" defaultValue="N"></parameter>
+<parameter name="P_EXCEPTION" dataType = "character"></parameter>
+<parameter name="P_DETAIL_SUMMARY" dataType = "character" defaultValue="Y"></parameter>
+<parameter name="P_SORT_BY" dataType = "character"></parameter>
+<parameter name="P_QTY_PRECISION" dataType = "number" defaultValue="2"></parameter>
+<parameter name="P_PERIOD_NAME" dataType = "character"></parameter>
+
+<parameter name="P_INV_STATUS" dataType = "character"></parameter>
+
+<parameter name="P_WHERE_RECEIVER" dataType = "character" defaultValue="1=1"></parameter>
+<parameter name="P_FLEX_CAT" dataType = "character" defaultValue="(MCA.SEGMENT1||&apos;\n&apos;||MCA.SEGMENT2||&apos;\n&apos;||MCA.SEGMENT3||&apos;\n&apos;||MCA.SEGMENT4||&apos;\n&apos;||MCA.SEGMENT5||&apos;\n&apos;||MCA.SEGMENT6||&apos;\n&apos;||MCA.SEGMENT7||&apos;\n&apos;||MCA.SEGMENT8||&apos;\n&apos;||MCA.SEGMENT9||&apos;\n&apos;||MCA.SEGMENT10||&apos;\n&apos;||MCA.SEGMENT11||&apos;\n&apos;||MCA.SEGMENT12||&apos;\n&apos;||MCA.SEGMENT13||&apos;\n&apos;||MCA.SEGMENT14||&apos;\n&apos;||MCA.SEGMENT15||&apos;\n&apos;||MCA.SEGMENT16||&apos;\n&apos;||MCA.SEGMENT17||&apos;\n&apos;||MCA.SEGMENT18||&apos;\n&apos;||MCA.SEGMENT19||&apos;\n&apos;||MCA.SEGMENT20)"></parameter>
+<parameter name="P_FLEX_ITEM" dataType = "character" defaultValue="(MSI.SEGMENT1||&apos;\n&apos;||MSI.SEGMENT2||&apos;\n&apos;||MSI.SEGMENT3||&apos;\n&apos;||MSI.SEGMENT4||&apos;\n&apos;||MSI.SEGMENT5||&apos;\n&apos;||MSI.SEGMENT6||&apos;\n&apos;||MSI.SEGMENT7||&apos;\n&apos;||MSI.SEGMENT8||&apos;\n&apos;||MSI.SEGMENT9||&apos;\n&apos;||MSI.SEGMENT10||&apos;\n&apos;||MSI.SEGMENT11||&apos;\n&apos;||MSI.SEGMENT12||&apos;\n&apos;||MSI.SEGMENT13||&apos;\n&apos;||MSI.SEGMENT14||&apos;\n&apos;||MSI.SEGMENT15||&apos;\n&apos;||MSI.SEGMENT16||&apos;\n&apos;||MSI.SEGMENT17||&apos;\n&apos;||MSI.SEGMENT18||&apos;\n&apos;||MSI.SEGMENT19||&apos;\n&apos;||MSI.SEGMENT20)"></parameter>
+
+<parameter name="P_CUSTOMER_FROM" dataType = "character"></parameter>
+<parameter name="P_CUSTOMER_TO" dataType = "character"></parameter>
+<parameter name="P_RMA_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_RMA_NUM_TO" dataType = "character"></parameter>
+
+</parameters>
+<lexicals>
+<lexical type ="oracle.apps.fnd.flex.kff.where" name ="P_WHERE_CAT" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" code_combination_table_alias="MCA" segments="ALL" operator="BETWEEN" operand1=":P_CATEGORY_FROM" operand2=":P_CATEGORY_TO" />
+<lexical type ="oracle.apps.fnd.flex.kff.where" name ="P_WHERE_ITEM" application_short_name="INV" id_flex_code="MSTK" id_flex_num=":P_ITEM_STRUCT_NUM" code_combination_table_alias="MSI" segments="ALL" operator="BETWEEN" operand1=":P_ITEM_FROM" operand2=":P_ITEM_TO" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_ITEM_DISP" application_short_name="INV" id_flex_code="MSTK" id_flex_num=":P_ITEM_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MSI" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_CAT_DISP" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MCA" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_LOCATOR_DISP" application_short_name="INV" id_flex_code="MTLL" id_flex_num=":P_ITEM_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MSL" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+</lexicals>
+<dataQuery>
+<sqlStatement name="Q_company">
+<![CDATA[
+SELECT   gsb.name                      c_company
+,        fsp.inventory_organization_id c_organization_id
+,        gsb.currency_code             GL_CURRENCY
+,        gsb.chart_of_accounts_id      STRUCTURE_ACC
+,        mdv.structure_id              STRUCTURE_CAT
+,        mdv.category_set_id           c_category_set_id
+,        flo1.meaning                  c_yes
+,        flo2.meaning                  c_no
+,        fc.precision                   c_precision
+,        nvl(fc.extended_precision,fc.precision)  c_ext_precision
+,        fsp.set_of_books_id      set_of_books
+FROM     gl_sets_of_books              gsb
+,        financials_system_parameters  fsp
+,        mtl_default_sets_view         mdv
+,        fnd_lookups                   flo1
+,        fnd_lookups                   flo2
+,        fnd_currencies               fc
+WHERE    gsb.set_of_books_id           = fsp.set_of_books_id
+AND      mdv.functional_area_id        = 2
+AND      flo1.lookup_type              = 'YES_NO'
+AND      flo1.lookup_code              = 'Y'
+AND      flo2.lookup_type              = 'YES_NO'
+AND      flo2.lookup_code              = 'N'
+AND      fc.enabled_flag = 'Y'
+AND      fc.currency_code = gsb.currency_code
+]]>
+</sqlStatement><sqlStatement name="Q_rcv_trx">
+<![CDATA[
+SELECT Invoice_Num
+     , TO_CHAR(Invoice_Date,'DD-MON-YY')  Invoice_Date
+     , Entry_Type
+     , C_FLEX_CAT
+     , C_FLEX_CAT_DISP
+     , C_FLEX_ITEM_DISP
+     , C_FLEX_ITEM
+     , C_CHARGE_ACCT_DISP
+     , C_VARIANCE_ACCT_DISP
+     , QTY_INVOICED
+     , Invoice_rate
+     , Invoice_amount
+     , Invoice_price
+     , Po_rate
+     , Po_price
+     , receipt_Unit
+     , item_id
+     , Item_Description
+     , VENDOR
+     , PO_Number_Release
+     , Currency
+     , Invoice_currency
+     , Line_Num
+     , UNIT
+     , LOCATION
+     , base_inv_price_var
+     , ex_rate_vari
+     , exch_RATE_VARIANCE_DISP
+FROM   (
+      SELECT   DISTINCT
+               apipv.invoice_num                         Invoice_Num
+      ,        apipv.invoice_date                      Invoice_Date
+      ,        decode(decode(apipv.quantity_invoiced,0,0,null,0,
+            nvl(apipv.quantity_invoiced,1)/abs(nvl(apipv.quantity_invoiced,1))),
+                      0, plc1.displayed_field, 1, plc2.displayed_field,
+                      -1, plc3.displayed_field)          Entry_Type
+      ,        &P_FLEX_CAT                               C_FLEX_CAT
+      ,        &C_FLEX_CAT_DISP                       C_FLEX_CAT_DISP
+      ,        &C_FLEX_ITEM_DISP                      C_FLEX_ITEM_DISP
+      ,        REPLACE(&P_FLEX_ITEM,'\n',CHR(10))                              C_FLEX_ITEM
+      ,        gcc.SEGMENT1||'.'||gcc.SEGMENT2||'.'||gcc.SEGMENT3||'.'||gcc.SEGMENT4||'.'||gcc.SEGMENT5||'.'||gcc.SEGMENT6||'.'||gcc.SEGMENT7||'.'||gcc.SEGMENT8    C_CHARGE_ACCT_DISP
+      ,        gcc1.SEGMENT1||'.'||gcc1.SEGMENT2||'.'||gcc1.SEGMENT3||'.'||gcc1.SEGMENT4||'.'||gcc1.SEGMENT5||'.'||gcc1.SEGMENT6||'.'||gcc1.SEGMENT7||'.'||gcc1.SEGMENT8    C_VARIANCE_ACCT_DISP
+      ,        round((apipv.quantity_invoiced/ (decode(pll.match_option,
+                                                     'R',
+                                                     po_uom_s.po_uom_convert_p(pol.unit_meas_lookup_code,
+                                                                               rct.unit_of_measure,
+                                                                               pol.item_id),1))), 20)   QTY_INVOICED
+      ,        nvl(apipv.invoice_rate,1) Invoice_rate
+      ,        apipv.invoice_amount Invoice_amount
+      ,        apipv.invoice_price Invoice_price
+      ,        nvl(pod.rate,nvl(poh.rate,1)) Po_rate
+      ,        pll.price_override Po_price
+      ,       rct.unit_of_measure          receipt_Unit
+      ,        pol.item_id                                             item_id
+      ,        msi.description                           Item_Description
+      ,        pov.vendor_name                           Vendor
+      ,        decode(poh.type_lookup_code,
+                      'BLANKET',
+                      poh.segment1||' - '||por.release_num,
+                      'PLANNED',
+                      poh.segment1||' - '||por.release_num,
+                      poh.segment1)                      PO_Number_Release
+      ,        poh.currency_code                         Currency
+      ,        apipv.invoice_currency                    Invoice_currency
+      ,        pol.line_num                              Line_Num            
+      ,        pol.unit_meas_lookup_code                 Unit
+      ,        lot.location_code                         Location
+      ,        decode(apipv.invoice_rate, null, apipv.price_var, apipv.base_price_var)               base_inv_price_var
+      ,        apipv.exch_rate_var                         ex_rate_vari
+      ,        CASE WHEN :P_QTY_PRECISION = 0 THEN  TO_CHAR(apipv.exch_rate_var,'999G999G999G990')         
+                        WHEN :P_QTY_PRECISION = 1 THEN  TO_CHAR(apipv.exch_rate_var,'999G999G999G990D0')
+                        WHEN :P_QTY_PRECISION = 3 THEN  TO_CHAR(apipv.exch_rate_var,'999G999G999G990D000')
+                        WHEN :P_QTY_PRECISION = 4 THEN  TO_CHAR(apipv.exch_rate_var,'999G999G999G990D0000')
+                        WHEN :P_QTY_PRECISION = 5 THEN  TO_CHAR(apipv.exch_rate_var,'999G999G999G990D00000')
+                    ELSE  TO_CHAR(apipv.exch_rate_var,'999G999G999G990D00')
+                        END 	  exch_RATE_VARIANCE_DISP
+
+      FROM     gl_code_combinations         gcc1
+      ,        gl_code_combinations         gcc
+      ,        gl_period_statuses           glps
+      ,        po_distributions             pod
+      ,        po_line_locations            pll
+      ,        po_lines                     pol
+      ,        po_releases                  por
+      ,        po_headers                   poh
+      ,        po_vendors                   pov
+      ,        ap_invoice_price_var_v       apipv
+      ,        mtl_system_items             msi
+      ,        mtl_categories               mca
+      ,        po_lookup_codes              plc1
+      ,        po_lookup_codes              plc2
+      ,        po_lookup_codes              plc3
+      ,        hr_locations_all_tl              lot
+      ,       rcv_transactions                rct
+             , ap_invoices_all    aia
+             , ap_invoice_lines_all               aila
+      WHERE    apipv.invoice_num = aia.invoice_num
+      and     aia.invoice_id = aila.invoice_id
+      and     (aila.cancelled_flag = 'N' and aila.discarded_flag = 'N')
+      AND     apipv.accounting_date = aila.accounting_date
+      AND      apipv.po_distribution_id   = pod.po_distribution_id
+      AND      pod.line_location_id       = pll.line_location_id
+      AND      pll.po_line_id             = pol.po_line_id
+      AND      pol.po_header_id           = poh.po_header_id
+      AND      pll.po_release_id          = por.po_release_id(+)
+      AND      poh.vendor_id              = pov.vendor_id(+)
+      AND      pol.item_id                = msi.inventory_item_id(+)
+      AND      msi.organization_id  = :c_organization_id
+      AND      pol.category_id            = mca.category_id
+      AND      gcc.code_combination_id    = pod.code_combination_id
+      AND      gcc1.code_combination_id   = pod.variance_account_id
+      AND      lot.location_id(+)    = pll.ship_to_location_id
+      AND      pll.ship_to_location_id is not null
+      AND      LOT.LANGUAGE(+) = USERENV('LANG')
+      AND      pod.destination_type_code  in ('INVENTORY','SHOP FLOOR')
+      AND      plc1.lookup_type           = 'POXRCIPV'
+      AND      plc1.lookup_code           = 'ADJUSTMENT'
+      AND      plc2.lookup_type           = 'POXRCIPV'
+      AND      plc2.lookup_code           = 'ENTRY'
+      AND      plc3.lookup_type           = 'POXRCIPV'
+      AND      plc3.lookup_code           = 'REVERSAL'
+      AND      nvl(pov.vendor_name,'A')            BETWEEN 
+                           nvl(:P_vendor_from, nvl(pov.vendor_name,'A')) 
+                                          AND
+                           nvl(:P_vendor_to, nvl(pov.vendor_name,'A'))
+      AND      glps.application_id        = 201
+      AND      glps.set_of_books_id       = :set_of_books
+      AND      glps.period_name           = nvl(:P_Period_Name, glps.period_name)
+      AND      apipv.accounting_date      BETWEEN glps.start_date 
+                                          AND  glps.end_date
+      AND      apipv.rcv_transaction_id   = rct.transaction_id(+)
+      AND      poh.type_lookup_code in ('STANDARD', 'BLANKET', 'PLANNED')
+      AND      pll.shipment_type in ('STANDARD', 'BLANKET', 'SCHEDULED')
+      AND     &P_WHERE_CAT
+      )
+ORDER BY Invoice_Date DESC, Po_rate
+]]>
+</sqlStatement>
+</dataQuery>
+<dataTrigger name="afterParameterFormTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.afterpform"/>
+<dataTrigger name="beforeReportTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.beforereport"/>
+<dataStructure>
+
+<!--element name="P_WHERE_ORG_ID" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_WHERE_ORG_ID"/>
+<element name="P_STRUCT_NUM" dataType="number" value="PO_RCVTXRTR_new_XMLP_PKG.P_STRUCT_NUM"/>
+<element name="P_FLEX_LOCATOR" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_FLEX_LOCATOR"/>
+<element name="P_ORG_DISPLAYED" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_ORG_DISPLAYED"/-->
+<group name="G_c_company" dataType="varchar2" source="Q_company">
+   <element name="c_company" dataType="varchar2" value="C_COMPANY"/>
+   <element name="c_organization_id" dataType="number" value="C_ORGANIZATION_ID"/>
+   <element name="GL_CURRENCY" dataType="varchar2" value="GL_CURRENCY"/>
+   <element name="STRUCTURE_ACC" dataType="number" value="STRUCTURE_ACC"/>
+   <element name="STRUCTURE_CAT" dataType="number" value="STRUCTURE_CAT"/>
+   <element name="c_yes" dataType="varchar2" value="C_YES"/>
+   <element name="c_no" dataType="varchar2" value="C_NO"/>
+   <element name="c_category_set_id" dataType="number" value="C_CATEGORY_SET_ID"/>
+   <element name="c_precision" dataType="number" value="C_PRECISION"/>
+   <element name="c_ext_precision" dataType="number" value="C_EXT_PRECISION"/>
+   <element name="set_of_books" dataType="number" value="SET_OF_BOOKS"/>
+</group>
+<group name="G_C_RCV_TRX" dataType="varchar2" source="Q_RCV_TRX">
+   <element name="C_FLEX_ITEM" dataType="varchar2" value="C_FLEX_ITEM"/>
+   <element name="C_FLEX_ITEM_DISP" dataType="varchar2"  value="C_FLEX_ITEM_DISP"/>
+   <element name="C_FLEX_CAT_DISP" dataType="varchar2"  value="C_FLEX_CAT_DISP"/>
+   <element name="C_FLEX_CAT" dataType="varchar2" value="C_FLEX_CAT"/>
+   <element name="INVOICE_NUM" dataType="varchar2" value="INVOICE_NUM"/>
+   <element name="INVOICE_DATE" dataType="varchar2" value="INVOICE_DATE"/>
+   <element name="ENTRY_TYPE" dataType="varchar2" value="ENTRY_TYPE"/>
+   <element name="C_VARIANCE_ACCT_DISP" dataType="varchar2" value="C_VARIANCE_ACCT_DISP"/>
+   <element name="C_CHARGE_ACCT_DISP" dataType="varchar2" value="C_CHARGE_ACCT_DISP"/>
+   <element name="QTY_INVOICED" dataType="varchar2" value="QTY_INVOICED"/>
+   <element name="ITEM_DESCRIPTION" dataType="varchar2" value="ITEM_DESCRIPTION"/>
+   <element name="VENDOR" dataType="varchar2" value="VENDOR"/>
+   <element name="PO_NUMBER_RELEASE" dataType="varchar2" value="PO_NUMBER_RELEASE"/>
+   <element name="CURRENCY" dataType="varchar2" value="CURRENCY"/>
+   <element name="INVOICE_CURRENCY" dataType="varchar2" value="INVOICE_CURRENCY"/>
+   <element name="LINE_NUM" dataType="varchar2" value="LINE_NUM"/>
+   <element name="UNIT" dataType="varchar2" value="UNIT"/>
+   <element name="LOCATION" dataType="varchar2" value="LOCATION"/>
+   <element name="INVOICE_RATE" dataType="varchar2" value="INVOICE_RATE"/>
+   <element name="INVOICE_AMOUNT" dataType="varchar2" value="INVOICE_AMOUNT"/>
+   <element name="INVOICE_PRICE" dataType="varchar2" value="INVOICE_PRICE"/>
+   <element name="PO_RATE" dataType="varchar2" value="PO_RATE"/>
+   <element name="PO_PRICE" dataType="varchar2" value="PO_PRICE"/>
+   <element name="INVOICE_BASE_PRICE" dataType="varchar2" value="INVOICE_BASE_PRICE"/>
+   <element name="PO_BASE_PRICE" dataType="varchar2" value="PO_BASE_PRICE"/>
+   <element name="BASE_INV_PRICE_VAR" dataType="varchar2" value="BASE_INV_PRICE_VAR"/>
+   <element name="EX_RATE_VARI" dataType="varchar2" value="EX_RATE_VARI"/>
+   <element name="EXCH_RATE_VARIANCE_DISP" dataType="varchar2" value="EXCH_RATE_VARIANCE_DISP"/>
+
+</group>
+
+
+</dataStructure>
+<dataTrigger name="afterReportTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.afterreport()"/>
+</dataTemplate>

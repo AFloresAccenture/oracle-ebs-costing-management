@@ -1,0 +1,1054 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- $Header: RCVTXRTR_XML.xml 120.1.12010000.4 2013/07/16 02:45:26 liayang ship $ -->
+<!-- dbdrv: exec java oracle/apps/xdo/oa/util XDOLoader.class java &phase=dat checkfile:~PROD:patch/115/publisher/defs:RCVTXRTR_XML.xml UPLOAD -DB_USERNAME &un_apps -DB_PASSWORD &pw_apps -JDBC_CONNECTION &jdbc_db_addr -LOB_TYPE DATA_TEMPLATE -APPS_SHORT_NAME ~PROD -LOB_CODE RCVTXRTR_XML -LANGUAGE 00 -XDO_FILE_TYPE XML-DATA-TEMPLATE -FILE_NAME &fullpath:~PROD:patch/115/publisher/defs:RCVTXRTR_XML.xml -->
+<!-- GSCC_Category="Xdo Data Definition" -->
+<!--  
+ *  File           : XXNBTYRCVTXRTR_DT.xml
+ *  Author         : STANDARD REPORT
+ *  Date           Author                    Description
+ *  ____________________________________________________________________________________________________
+ *  2016-APR-08    Jan Michael Cuales        Update Grouping of Data 
+ *  2016-APR-13    Khristine Austero         Update the format creation date and add case statement in the input parameters
+ *  2016-MAY-23    Aries Eroma Gacias        Add additional columns ORG_ID | ACCOUNT_VALUE | EXTENDED_VALUE 
+ -->
+<dataTemplate name="RCVTXRTR" defaultPackage="PO_RCVTXRTR_new_XMLP_PKG" version="1.0">
+<properties>
+<property name="xml_tag_case" value="upper" />
+</properties>
+<parameters>
+<parameter name="P_TITLE" dataType = "character"></parameter>
+<parameter name="P_CONC_REQUEST_ID" dataType = "number" defaultValue="0"></parameter>
+<parameter name="ITEM_ID" dataType = "character"></parameter>
+<parameter name="RRP_ORGANIZATION_ID" dataType = "character"></parameter>
+<parameter name="RRP_TRANSACTION_ID" dataType = "character"></parameter>
+<parameter name="RRP_SHIPMENT_LINE_ID" dataType = "character"></parameter>
+<parameter name="RRP_FROM_INTERFACE" dataType = "character"></parameter>
+<parameter name="P_FLEX_CAT" dataType = "character" defaultValue="(MCA.SEGMENT1||&apos;\n&apos;||MCA.SEGMENT2||&apos;\n&apos;||MCA.SEGMENT3||&apos;\n&apos;||MCA.SEGMENT4||&apos;\n&apos;||MCA.SEGMENT5||&apos;\n&apos;||MCA.SEGMENT6||&apos;\n&apos;||MCA.SEGMENT7||&apos;\n&apos;||MCA.SEGMENT8||&apos;\n&apos;||MCA.SEGMENT9||&apos;\n&apos;||MCA.SEGMENT10||&apos;\n&apos;||MCA.SEGMENT11||&apos;\n&apos;||MCA.SEGMENT12||&apos;\n&apos;||MCA.SEGMENT13||&apos;\n&apos;||MCA.SEGMENT14||&apos;\n&apos;||MCA.SEGMENT15||&apos;\n&apos;||MCA.SEGMENT16||&apos;\n&apos;||MCA.SEGMENT17||&apos;\n&apos;||MCA.SEGMENT18||&apos;\n&apos;||MCA.SEGMENT19||&apos;\n&apos;||MCA.SEGMENT20)"></parameter>
+<parameter name="P_FLEX_ITEM" dataType = "character" defaultValue="(MSI.SEGMENT1||&apos;\n&apos;||MSI.SEGMENT2||&apos;\n&apos;||MSI.SEGMENT3||&apos;\n&apos;||MSI.SEGMENT4||&apos;\n&apos;||MSI.SEGMENT5||&apos;\n&apos;||MSI.SEGMENT6||&apos;\n&apos;||MSI.SEGMENT7||&apos;\n&apos;||MSI.SEGMENT8||&apos;\n&apos;||MSI.SEGMENT9||&apos;\n&apos;||MSI.SEGMENT10||&apos;\n&apos;||MSI.SEGMENT11||&apos;\n&apos;||MSI.SEGMENT12||&apos;\n&apos;||MSI.SEGMENT13||&apos;\n&apos;||MSI.SEGMENT14||&apos;\n&apos;||MSI.SEGMENT15||&apos;\n&apos;||MSI.SEGMENT16||&apos;\n&apos;||MSI.SEGMENT17||&apos;\n&apos;||MSI.SEGMENT18||&apos;\n&apos;||MSI.SEGMENT19||&apos;\n&apos;||MSI.SEGMENT20)"></parameter>
+<!--parameter name="P_ORG_DISPLAYED" dataType = "character"></parameter-->
+<parameter name="P_ORG_ID" dataType = "number"></parameter>
+<!--parameter name="P_FLEX_LOCATOR" dataType = "character" defaultValue="(MSL.SEGMENT1||&apos;\n&apos;||MSL.SEGMENT2||&apos;\n&apos;||MSL.SEGMENT3||&apos;\n&apos;||MSL.SEGMENT4||&apos;\n&apos;||MSL.SEGMENT5||&apos;\n&apos;||MSL.SEGMENT6||&apos;\n&apos;||MSL.SEGMENT7||&apos;\n&apos;||MSL.SEGMENT8||&apos;\n&apos;||MSL.SEGMENT9||&apos;\n&apos;||MSL.SEGMENT10||&apos;\n&apos;||MSL.SEGMENT11||&apos;\n&apos;||MSL.SEGMENT12||&apos;\n&apos;||MSL.SEGMENT13||&apos;\n&apos;||MSL.SEGMENT14||&apos;\n&apos;||MSL.SEGMENT15||&apos;\n&apos;||MSL.SEGMENT16||&apos;\n&apos;||MSL.SEGMENT17||&apos;\n&apos;||MSL.SEGMENT18||&apos;\n&apos;||MSL.SEGMENT19||&apos;\n&apos;||MSL.SEGMENT20)"></parameter-->
+<parameter name="P_STRUCT_NUM" dataType = "number"></parameter>
+<parameter name="P_ITEM_STRUCT_NUM" dataType = "number" defaultValue="101"></parameter>
+<parameter name="P_ITEM_FROM" dataType = "character"></parameter>
+<parameter name="P_ITEM_TO" dataType = "character"></parameter>
+<parameter name="P_CATEGORY_TO" dataType = "character"></parameter>
+<parameter name="P_CATEGORY_FROM" dataType = "character"></parameter>
+<parameter name="P_VENDOR_FROM" dataType = "character"></parameter>
+<parameter name="P_VENDOR_TO" dataType = "character"></parameter>
+<parameter name="P_PO_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_PO_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_RECEIPT_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_RECEIPT_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_REQ_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_SHIP_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_REQ_NUM_TO" dataType = "character"></parameter>
+<parameter name="P_SHIP_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_TRX_DATE_FROM" dataType = "date"></parameter>
+<parameter name="P_TRX_DATE_TO" dataType = "date"></parameter>
+<parameter name="P_RECEIVER" dataType = "character"></parameter>
+<parameter name="P_TRX_TYPE" dataType = "character"></parameter>
+<parameter name="P_BUYER" dataType = "character"></parameter>
+<parameter name="P_INC_LOT_AND_SERIAL" dataType = "character" defaultValue="N"></parameter>
+<parameter name="P_EXCEPTION" dataType = "character"></parameter>
+<parameter name="P_DETAIL_SUMMARY" dataType = "character" defaultValue="Y"></parameter>
+<parameter name="P_SORT_BY" dataType = "character"></parameter>
+<parameter name="P_QTY_PRECISION" dataType = "number" defaultValue="2"></parameter>
+<!--parameter name="P_WHERE_CAT" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_ITEM" dataType = "character" defaultValue="1=1"></parameter-->
+<parameter name="P_INV_STATUS" dataType = "character"></parameter>
+<!--parameter name="P_WHERE_ORG_ID" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_RECEIPT_NUM_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_RECEIPT_NUM_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<parameter name="P_WHERE_RECEIVER" dataType = "character" defaultValue="1=1"></parameter>
+<!--parameter name="P_WHERE_PO_NUM_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_VENDOR_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_VENDOR_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_BUYER" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_PO_NUM_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_TRX_TYPE" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_TRX_DATE_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_TRX_DATE_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_SHIP_NUM_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_SHIP_NUM_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_REQ_NUM_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_REQ_NUM_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<parameter name="P_CUSTOMER_FROM" dataType = "character"></parameter>
+<parameter name="P_CUSTOMER_TO" dataType = "character"></parameter>
+<parameter name="P_RMA_NUM_FROM" dataType = "character"></parameter>
+<parameter name="P_RMA_NUM_TO" dataType = "character"></parameter>
+<!--parameter name="P_WHERE_CUSTOMER_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_CUSTOMER_TO" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_RMA_NUM_FROM" dataType = "character" defaultValue="1=1"></parameter-->
+<!--parameter name="P_WHERE_RMA_NUM_TO" dataType = "character" defaultValue="1=1"></parameter-->
+</parameters>
+<lexicals>
+<lexical type ="oracle.apps.fnd.flex.kff.where" name ="P_WHERE_CAT" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" code_combination_table_alias="MCA" segments="ALL" operator="BETWEEN" operand1=":P_CATEGORY_FROM" operand2=":P_CATEGORY_TO" />
+<lexical type ="oracle.apps.fnd.flex.kff.where" name ="P_WHERE_ITEM" application_short_name="INV" id_flex_code="MSTK" id_flex_num=":P_ITEM_STRUCT_NUM" code_combination_table_alias="MSI" segments="ALL" operator="BETWEEN" operand1=":P_ITEM_FROM" operand2=":P_ITEM_TO" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_ITEM_DISP" application_short_name="INV" id_flex_code="MSTK" id_flex_num=":P_ITEM_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MSI" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_CAT_DISP" application_short_name="INV" id_flex_code="MCAT" id_flex_num=":P_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MCA" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+<lexical type ="oracle.apps.fnd.flex.kff.select"  name ="C_FLEX_LOCATOR_DISP" application_short_name="INV" id_flex_code="MTLL" id_flex_num=":P_ITEM_STRUCT_NUM" multiple_id_flex_num="N" code_combination_table_alias="MSL" segments="ALL" show_parent_segments="Y" output_type="VALUE" />
+</lexicals>
+<dataQuery>
+<sqlStatement name="Q_company">
+<![CDATA[
+SELECT gsb.name                      c_company
+      ,fsp.inventory_organization_id c_organization_id
+      ,gsb.currency_code             GL_CURRENCY
+      ,gsb.chart_of_accounts_id      STRUCTURE_ACC
+      ,mdv.structure_id              STRUCTURE_CAT
+      ,mdv.category_set_id           c_category_set_id
+      ,flo1.meaning                  c_yes
+      ,flo2.meaning                  c_no
+FROM   gl_sets_of_books              gsb
+      ,financials_system_parameters  fsp
+      ,mtl_default_sets_view         mdv
+      ,fnd_lookups                   flo1
+      ,fnd_lookups                   flo2
+WHERE  gsb.set_of_books_id      = fsp.set_of_books_id
+   AND mdv.functional_area_id   = 2
+   AND flo1.lookup_type         = 'YES_NO'
+   AND flo1.lookup_code         = 'Y'
+   AND flo2.lookup_type         = 'YES_NO'
+   AND flo2.lookup_code         = 'N'
+]]>
+</sqlStatement><sqlStatement name="Q_rcv_trx">
+<![CDATA[
+
+SELECT TX_ID
+      ,ORG
+      ,organization_code
+      ,ACCOUNT_VALUE
+      ,QTY*PRICE   EXTENDED_VALUE
+      ,SRC_TYPE
+      ,SRC
+      ,C_FLEX_ITEM
+      ,C_FLEX_CAT
+      ,REV
+      ,DES
+      ,RECEIPT_NUM
+      ,DOC_NUM
+      ,TX_DATE
+      ,TX_TYPE
+      ,UOM
+      ,PO_UOM
+      ,QTY
+      ,PRICE
+      ,DOC_TYPE
+      ,BUYER_PREPARER
+      ,RECEIVER
+      ,PCKING_SLIP
+      ,CREATION_DATE
+      ,Q_CODE
+      ,EXCEPTION
+      ,PAR_TX_TYPE
+      ,DESTINATION_TYPE
+      ,DELIVER_TO_PERSON
+      ,DELIVER_TO_LOCATION
+      ,DESTINATION_SUBINVENTORY	
+      ,C_FLEX_LOCATOR
+      ,TX_REASON
+      ,LS_ITEM_ID
+      ,LS_TRANSACTION_ID
+      ,LS_SHIPMENT_LINE_ID
+      ,LS_ORGANIZATION_ID
+      ,LICENSE_PLATE_NUMBER
+      ,C_flex_item_disp
+      ,C_flex_cat_disp
+      ,C_FLEX_LOCATOR_DISP
+      ,RCV_UOM_CONVERT
+      ,(CASE WHEN :P_RMA_NUM_FROM       = 'Y' THEN 'YES'     WHEN :P_RMA_NUM_FROM        = 'N'  THEN   'NO'    END) AS P_RMA_FROM
+      ,(CASE WHEN :P_RMA_NUM_TO         = 'Y' THEN 'YES'     WHEN :P_RMA_NUM_TO          = 'N'  THEN   'NO'    END) AS P_RMA_TO
+      ,(CASE WHEN :P_EXCEPTION          = 'Y' THEN 'YES'     WHEN :P_EXCEPTION           = 'N'  THEN   'NO'    END) AS P_EXCEPT
+      ,(CASE WHEN :P_DETAIL_SUMMARY     = 'Y' THEN 'YES'     WHEN :P_DETAIL_SUMMARY      = 'N'  THEN   'NO'    END) AS P_DETAIL_SUMM
+      ,(CASE WHEN :P_INC_LOT_AND_SERIAL = 'Y' THEN 'YES'     WHEN :P_INC_LOT_AND_SERIAL  = 'N'  THEN   'NO'    END) AS P_INC_LAS
+      ,TO_CHAR(SYSDATE, 'DD-Mon-YYYY') AS REPORT_DATE
+      ,:P_ORG_ID AS P_ORG
+FROM 
+( SELECT   RCT.TRANSACTION_ID	   TX_ID
+          ,HRU.NAME                ORG
+	      ,' '|| ood.organization_code	organization_code
+	      ,PLC1.DISPLAYED_FIELD	   SRC_TYPE
+          ,POV.VENDOR_NAME	   SRC               
+          ,DECODE(POL.purchase_basis,                   
+                     'TEMP LABOR', POL.contractor_first_name || ' ' || POL.contractor_last_name,
+                     null)                     C_FLEX_ITEM
+          ,null                                 C_FLEX_CAT
+          ,RSL.ITEM_REVISION	               REV
+          ,RSL.ITEM_DESCRIPTION	               DES
+          ,RSH.RECEIPT_NUM		               RECEIPT_NUM
+          ,POH.SEGMENT1 || DECODE (POR.RELEASE_NUM, NULL, NULL, '-' || POR.RELEASE_NUM) || DECODE (POL.LINE_NUM, NULL, NULL, '-' || POL.LINE_NUM) || DECODE (PLL.SHIPMENT_NUM, NULL, NULL, '-'|| PLL.SHIPMENT_NUM)	  	DOC_NUM
+          ,TO_CHAR(RCT.TRANSACTION_DATE, 'DD/MON/YYYY HH24:MI:SS')	TX_DATE
+          ,PLC2.DISPLAYED_FIELD	   TX_TYPE
+          ,DECODE(POL.matching_basis,'AMOUNT', RCT.currency_code,RCT.UNIT_OF_MEASURE)	        UOM   
+          ,DECODE(POL.matching_basis,'AMOUNT', NULL,PLL.UNIT_MEAS_LOOKUP_CODE)                  PO_UOM  
+          ,round(DECODE(POL.matching_basis,'AMOUNT', RCT.amount,RCT.QUANTITY),:P_qty_precision)	QTY   
+          ,RCT.PO_UNIT_PRICE	               PRICE 
+          ,PDT.TYPE_NAME		               DOC_TYPE
+          ,P2.FULL_NAME			               BUYER_PREPARER
+          ,P1.FULL_NAME			               RECEIVER
+          ,RSH.PACKING_SLIP		               PCKING_SLIP
+--        ,RCT.CREATION_DATE		CREATION_DATE
+          ,TO_CHAR(RCT.CREATION_DATE, 'DD-Mon-YY')	CREATION_DATE
+          ,RCT.INSPECTION_QUALITY_CODE     Q_CODE
+          ,DECODE(RCT.RECEIPT_EXCEPTION_FLAG,'Y',:yes,'N',:no,null)      EXCEPTION
+          ,PLC3.DISPLAYED_FIELD                PAR_TX_TYPE
+          ,PLC.DISPLAYED_FIELD		           DESTINATION_TYPE
+          ,P3.FULL_NAME			               DELIVER_TO_PERSON
+          ,LOT.LOCATION_CODE                   DELIVER_TO_LOCATION	
+          ,RCT.SUBINVENTORY 	               DESTINATION_SUBINVENTORY
+          ,null                                C_FLEX_LOCATOR
+          ,MTR.REASON_NAME		               TX_REASON
+          ,RSL.ITEM_ID			               LS_ITEM_ID
+          ,RCT.TRANSACTION_ID		           LS_TRANSACTION_ID
+          ,RCT.SHIPMENT_LINE_ID                LS_SHIPMENT_LINE_ID
+          ,RCT.ORGANIZATION_ID                 LS_ORGANIZATION_ID
+          ,WLPN1.LICENSE_PLATE_NUMBER	   LICENSE_PLATE_NUMBER, 
+--	&C_FLEX_ITEM_DISP C_flex_item_disp, 
+         (CASE WHEN &C_FLEX_ITEM_DISP LIKE '%Program error%' THEN ' '
+		  ELSE &C_FLEX_ITEM_DISP
+		  END ) AS                             C_flex_item_disp,
+	      &C_FLEX_CAT_DISP C_flex_cat_disp, 
+	      nvl2(RCT.locator_id, &C_FLEX_LOCATOR_DISP, null) C_FLEX_LOCATOR_DISP, 
+	      PO_RCVTXRTR_new_XMLP_PKG.rcv_uom_convertformula(DECODE ( POL.matching_basis , 'AMOUNT' , NULL , PLL.UNIT_MEAS_LOOKUP_CODE ), 
+		  DECODE ( POL.matching_basis , 'AMOUNT' , RCT.currency_code , RCT.UNIT_OF_MEASURE ), RSL.ITEM_ID, RCT.PO_UNIT_PRICE) RCV_UOM_CONVERT    
+		  ,gcc.segment1||'.'||gcc.segment2||'.'||gcc.segment3||'.'||gcc.segment4||'.'||gcc.segment5||'.'||gcc.segment6||'.'||gcc.segment7||'.'||gcc.segment8  ACCOUNT_VALUE
+          
+		  
+     FROM PO_LOOKUP_CODES PLC,
+          PO_LOOKUP_CODES PLC1,
+          PO_LOOKUP_CODES PLC2,
+          PO_LOOKUP_CODES PLC3,
+          PO_RELEASES_ALL POR,             
+          PO_DOCUMENT_TYPES PDT,
+          PO_DISTRIBUTIONS_ALL  POD,   
+          PER_PEOPLE_F  P2,
+          PER_PEOPLE_F  P3,	
+          HR_LOCATIONS_ALL_TL LOT,
+          MTL_TRANSACTION_REASONS  MTR, 
+          PO_VENDORS POV,
+          HR_ORGANIZATION_UNITS HRU,
+          MTL_SYSTEM_ITEMS  MSI,
+          MTL_CATEGORIES  MCA,
+          MTL_ITEM_LOCATIONS MSL,
+          PO_HEADERS POH,
+          PO_LINES_ALL POL,                                
+          PO_LINE_LOCATIONS_ALL PLL,               
+          RCV_TRANSACTIONS PAR,
+          RCV_SHIPMENT_LINES RSL,
+          RCV_SHIPMENT_HEADERS RSH,
+          PER_PEOPLE_F  P1,
+          RCV_TRANSACTIONS RCT,
+          WMS_LICENSE_PLATE_NUMBERS WLPN1
+		    --Additional-- 
+		,gl_code_combinations     gcc
+		,org_organization_definitions   ood
+              		
+ WHERE  --Additional--
+			1=1
+		  AND POD.code_combination_id = gcc.code_combination_id
+		  AND  RCT.ORGANIZATION_ID = ood.ORGANIZATION_ID(+)
+	    --ADDITIONAL--
+	      AND MSI.INVENTORY_ITEM_ID (+)  =  RSL.ITEM_ID
+          AND nvl(MSI.ORGANIZATION_ID,:organization_id)   =  :organization_id
+          AND MCA.CATEGORY_ID                  =  RSL.CATEGORY_ID
+          AND MSL.INVENTORY_LOCATION_ID (+)  =  RCT.LOCATOR_ID
+          AND nvl(MSL.ORGANIZATION_ID,RCT.ORGANIZATION_ID)   =  RCT.ORGANIZATION_ID
+          AND RCT.SOURCE_DOCUMENT_CODE     = 'PO'
+          AND RSH.RECEIPT_SOURCE_CODE     || ''    = 'VENDOR'
+          AND RCT.SHIPMENT_LINE_ID            = RSL.SHIPMENT_LINE_ID
+          AND RCT.SHIPMENT_HEADER_ID          = RSH.SHIPMENT_HEADER_ID
+          AND RCT.PO_HEADER_ID                = POH.PO_HEADER_ID
+          AND RCT.PO_LINE_ID                  = POL.PO_LINE_ID 
+          AND RCT.PO_LINE_LOCATION_ID         = PLL.LINE_LOCATION_ID
+          AND RCT.PO_DISTRIBUTION_ID		= POD.PO_DISTRIBUTION_ID (+)
+          AND RCT.PO_RELEASE_ID               = POR.PO_RELEASE_ID (+)	
+          AND ( (POH.TYPE_LOOKUP_CODE            = 'STANDARD'
+               AND PDT.DOCUMENT_TYPE_CODE               = 'PO'
+               AND PDT.DOCUMENT_SUBTYPE            = 'STANDARD')
+               OR
+              (PDT.DOCUMENT_TYPE_CODE               = 'RELEASE'
+               AND
+               PDT.DOCUMENT_SUBTYPE       = NVL(POR.RELEASE_TYPE, '~')))
+          AND (RCT.EMPLOYEE_ID                 = P1.PERSON_ID (+)
+	      AND trunc(RCT.CREATION_DATE) BETWEEN
+	      NVL(P1.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+	      NVL(P1.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+          AND (POH.AGENT_ID                    = P2.PERSON_ID  (+)
+	      AND trunc(POH.APPROVED_DATE) BETWEEN 
+	      NVL(P2.EFFECTIVE_START_DATE, trunc(POH.APPROVED_DATE))
+	      AND NVL(P2.EFFECTIVE_END_DATE, trunc(POH.APPROVED_DATE)))
+          AND PLC1.LOOKUP_CODE                = RSH.RECEIPT_SOURCE_CODE  ||  ''
+          AND PLC1.LOOKUP_TYPE                = 'SHIPMENT SOURCE TYPE'
+          AND RSH.VENDOR_ID                   = POV.VENDOR_ID
+          AND PAR.TRANSACTION_ID (+)	        = RCT.PARENT_TRANSACTION_ID
+          AND LOT.LOCATION_ID(+)              = RCT.DELIVER_TO_LOCATION_ID
+          AND LOT.LANGUAGE(+) = USERENV('LANG')
+          AND (P3.PERSON_ID(+)              = RCT.DELIVER_TO_PERSON_ID
+	      and trunc(RCT.CREATION_DATE)  BETWEEN
+	      NVL(P3.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+	      NVL(P3.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+          AND PLC.LOOKUP_CODE                 = RCT.DESTINATION_TYPE_CODE
+          AND PLC.LOOKUP_TYPE                 = 'RCV DESTINATION TYPE'
+          AND PLC2.LOOKUP_TYPE	 	= 'RCV TRANSACTION TYPE'
+          AND PLC2.LOOKUP_CODE                = RCT.TRANSACTION_TYPE 
+          AND PLC3.LOOKUP_TYPE  (+)              = 'RCV TRANSACTION TYPE'
+          AND PLC3.LOOKUP_CODE  (+)              = PAR.TRANSACTION_TYPE
+          AND HRU.ORGANIZATION_ID           = RCT.ORGANIZATION_ID
+          AND  &P_WHERE_ORG_ID
+          AND MTR.REASON_ID(+)                = RCT.REASON_ID
+          AND &P_WHERE_RECEIPT_NUM_FROM
+          AND &P_WHERE_RECEIPT_NUM_TO
+          AND &P_WHERE_SHIP_NUM_FROM
+          AND &P_WHERE_SHIP_NUM_TO
+          AND &P_WHERE_ITEM
+          AND  &P_WHERE_CAT 
+          AND &P_WHERE_PO_NUM_FROM
+          AND &P_WHERE_PO_NUM_TO
+          AND &P_WHERE_TRX_DATE_FROM
+          AND &P_WHERE_TRX_DATE_TO
+          AND &P_WHERE_TRX_TYPE
+          AND nvl(P1.FULL_NAME,'~')                      =  nvl(:P_receiver,nvl(P1.FULL_NAME,'~'))
+          AND &P_WHERE_BUYER
+          AND &P_WHERE_VENDOR_FROM
+          AND &P_WHERE_VENDOR_TO
+          AND (( :P_req_num_from is null
+             	and :P_req_num_to is null
+             	and :P_rma_num_from is null
+             	and :P_rma_num_to is null
+             	and :P_customer_from is null
+             	and :P_customer_to is null)
+               OR(:P_vendor_from is not  null
+             	or :P_vendor_to is not null
+                 or :P_po_num_from is not  null       
+             	or :P_po_num_to  is not null))
+          AND(:P_exception is null
+             or 
+            	(:P_exception is not null 
+				and rct.receipt_exception_flag = :P_exception))  
+          AND RCT.TRANSFER_LPN_ID = WLPN1.LPN_ID(+) 
+UNION
+SELECT     RCT.TRANSACTION_ID		TX_ID    
+          ,HRU.NAME           ORG
+	      ,' '|| ood.organization_code	organization_code
+	      ,PLC1.DISPLAYED_FIELD		SRC_TYPE
+          ,HRU1.NAME || PRL.SOURCE_SUBINVENTORY	SRC
+          ,null                                     C_FLEX_ITEM
+          ,null                                      C_FLEX_CAT
+          ,RSL.ITEM_REVISION		REV
+          ,RSL.ITEM_DESCRIPTION		DES
+          ,RSH.RECEIPT_NUM			RECEIPT_NUM
+          ,PRH.SEGMENT1			DOC_NUM
+          ,TO_CHAR(RCT.TRANSACTION_DATE, 'DD/MON/YYYY HH24:MI:SS')		TX_DATE
+          ,PLC2.DISPLAYED_FIELD		TX_TYPE
+          ,RCT.UNIT_OF_MEASURE	UOM  
+          , NULL      PO_UOM
+          ,round(RCT.QUANTITY,:P_qty_precision)		QTY  
+          ,PRL.UNIT_PRICE			PRICE
+          ,PDT.TYPE_NAME			DOC_TYPE
+          ,P2.FULL_NAME			BUYER_PREPARER
+          ,P1.FULL_NAME			RECEIVER
+          ,RSH.PACKING_SLIP		PCKING_SLIP
+--        ,RCT.CREATION_DATE		CREATION_DATE
+          ,TO_CHAR(RCT.CREATION_DATE, 'DD-Mon-YY')	CREATION_DATE
+          ,RCT.INSPECTION_QUALITY_CODE     Q_CODE
+          ,DECODE(RCT.RECEIPT_EXCEPTION_FLAG,'Y',:yes,'N',:no,null)      EXCEPTION    
+          ,PLC3.DISPLAYED_FIELD            PAR_TX_TYPE
+          ,PLC.DISPLAYED_FIELD             DESTINATION_TYPE
+          ,P3.FULL_NAME                  DELIVER_TO_PERSON
+          ,LOT.LOCATION_CODE               DELIVER_TO_LOCATION
+          ,RCT.SUBINVENTORY    DESTINATION_SUBINVENTORY
+          ,null                                    C_FLEX_LOCATOR 
+          ,MTR.REASON_NAME			TX_REASON
+          ,RSL.ITEM_ID			LS_ITEM_ID
+          ,RCT.TRANSACTION_ID		LS_TRANSACTION_ID
+          ,RCT.SHIPMENT_LINE_ID                            LS_SHIPMENT_LINE_ID
+          ,RCT.ORGANIZATION_ID                             LS_ORGANIZATION_ID
+	      ,WLPN1.LICENSE_PLATE_NUMBER	LICENSE_PLATE_NUMBER, 
+--	      &C_FLEX_ITEM_DISP C_flex_item_disp, 
+          (CASE WHEN &C_FLEX_ITEM_DISP LIKE '%Program error%' THEN ' '
+		    ELSE &C_FLEX_ITEM_DISP
+		     END ) AS C_flex_item_disp,
+	      &C_FLEX_CAT_DISP C_flex_cat_disp, 
+	      nvl2(RCT.locator_id, &C_FLEX_LOCATOR_DISP, null) C_FLEX_LOCATOR_DISP, 
+	      PO_RCVTXRTR_new_XMLP_PKG.rcv_uom_convertformula(NULL,RCT.UNIT_OF_MEASURE,RSL.ITEM_ID,PRL.UNIT_PRICE) RCV_UOM_CONVERT
+	--Additional 2--
+          ,gcc.segment1||'.'||gcc.segment2||'.'||gcc.segment3||'.'||gcc.segment4||'.'||gcc.segment5||'.'||gcc.segment6||'.'||gcc.segment7||'.'||gcc.segment8 ACCOUNT_VALUE
+   FROM
+          PO_LOOKUP_CODES PLC,
+          PO_LOOKUP_CODES PLC1,
+          PO_LOOKUP_CODES PLC2,
+          PO_LOOKUP_CODES PLC3,
+          PO_DOCUMENT_TYPES PDT,
+          PER_PEOPLE_F P2,
+          PER_PEOPLE_F P3,
+          MTL_TRANSACTION_REASONS  MTR,
+          HR_ORGANIZATION_UNITS HRU,
+          HR_LOCATIONS_ALL_TL LOT,
+          HR_ORGANIZATION_UNITS HRU1,
+          MTL_SYSTEM_ITEMS  MSI,
+          MTL_CATEGORIES  MCA,
+          MTL_ITEM_LOCATIONS MSL,
+          PO_REQUISITION_HEADERS PRH,
+          PO_REQUISITION_LINES_ALL PRL,   
+          RCV_TRANSACTIONS PAR,
+          RCV_SHIPMENT_LINES RSL,
+          RCV_SHIPMENT_HEADERS RSH,
+          PER_PEOPLE_F P1,
+          RCV_TRANSACTIONS RCT,
+          WMS_LICENSE_PLATE_NUMBERS WLPN1
+	      --Additional--
+		  ,PO_DISTRIBUTIONS_ALL  POD
+		  ,gl_code_combinations gcc
+		  ,org_organization_definitions   ood
+		
+   WHERE    1=1
+          AND RCT.PO_DISTRIBUTION_ID = POD.PO_DISTRIBUTION_ID (+)
+		  AND gcc.code_combination_id = POD.code_combination_id
+		  AND  RCT.ORGANIZATION_ID  =  ood.ORGANIZATION_ID(+) 
+		  --ADDITIONAL--
+          AND MSI.INVENTORY_ITEM_ID (+)  =  RSL.ITEM_ID
+          AND  nvl(MSI.ORGANIZATION_ID,:organization_id)   =  :organization_id
+          AND  MCA.CATEGORY_ID                  =  RSL.CATEGORY_ID
+          AND  MSL.INVENTORY_LOCATION_ID (+)  =  RCT.LOCATOR_ID
+          AND  nvl(MSL.ORGANIZATION_ID,RCT.ORGANIZATION_ID)   =  RCT.ORGANIZATION_ID
+          AND  RCT.SHIPMENT_LINE_ID            = RSL.SHIPMENT_LINE_ID
+          AND  RCT.SHIPMENT_HEADER_ID          = RSH.SHIPMENT_HEADER_ID
+          AND  RCT.REQUISITION_LINE_ID         = PRL.REQUISITION_LINE_ID
+          AND  PRL.REQUISITION_HEADER_ID       = PRH.REQUISITION_HEADER_ID
+          AND  RSH.ORGANIZATION_ID             = HRU1.ORGANIZATION_ID
+          AND  PDT.DOCUMENT_SUBTYPE            = PRH.TYPE_LOOKUP_CODE
+          AND  PDT.DOCUMENT_TYPE_CODE          = 'REQUISITION'
+          AND  RCT.SOURCE_DOCUMENT_CODE        = 'REQ'
+          AND  RSH.RECEIPT_SOURCE_CODE   || ''     = 'INTERNAL ORDER'
+          AND  (RCT.EMPLOYEE_ID                 = P1.PERSON_ID (+)
+          	 AND trunc(RCT.CREATION_DATE) BETWEEN
+          	 NVL(P1.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+          	 NVL(P1.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+          AND (PRH.PREPARER_ID                 = P2.PERSON_ID
+          	 AND trunc(PRH.LAST_UPDATE_DATE) BETWEEN
+          	 NVL(P2.EFFECTIVE_START_DATE, trunc(PRH.LAST_UPDATE_DATE)) AND
+          	 NVL(P2.EFFECTIVE_END_DATE,  trunc(PRH.LAST_UPDATE_DATE)))
+          AND  PLC1.LOOKUP_CODE                = RSH.RECEIPT_SOURCE_CODE || ''
+          AND  PLC1.LOOKUP_TYPE                = 'SHIPMENT SOURCE TYPE'
+          AND  PAR.TRANSACTION_ID (+)          = RCT.PARENT_TRANSACTION_ID
+          AND  PLC.LOOKUP_CODE                  = PRL.DESTINATION_TYPE_CODE
+          AND  PLC.LOOKUP_TYPE                  = 'RCV DESTINATION TYPE'
+          AND  (P3.PERSON_ID                 = PRL.TO_PERSON_ID
+          	 AND trunc(PRL.LAST_UPDATE_DATE) BETWEEN
+          	 NVL(P3.EFFECTIVE_START_DATE, trunc(PRL.LAST_UPDATE_DATE)) AND
+          	 NVL(P3.EFFECTIVE_END_DATE,  trunc(PRL.LAST_UPDATE_DATE)))
+          AND  LOT.LOCATION_ID(+)              = PRL.DELIVER_TO_LOCATION_ID
+          AND  LOT.LANGUAGE(+) = USERENV('LANG')
+          AND  PLC2.LOOKUP_TYPE	 	= 'RCV TRANSACTION TYPE'
+          AND  PLC2.LOOKUP_CODE                = RCT.TRANSACTION_TYPE 
+          AND  PLC3.LOOKUP_TYPE (+)                = 'RCV TRANSACTION TYPE'
+          AND  PLC3.LOOKUP_CODE (+)               = PAR.TRANSACTION_TYPE
+          AND  HRU.ORGANIZATION_ID           = RCT.ORGANIZATION_ID
+          AND   &P_WHERE_ORG_ID
+          AND  MTR.REASON_ID(+)                = RCT.REASON_ID
+          AND  &P_WHERE_RECEIPT_NUM_FROM
+          AND  &P_WHERE_RECEIPT_NUM_TO
+          AND  &P_WHERE_SHIP_NUM_FROM
+          AND  &P_WHERE_SHIP_NUM_TO
+          AND  &P_WHERE_ITEM
+          AND  &P_WHERE_CAT 
+          AND  &P_WHERE_REQ_NUM_FROM
+          AND  &P_WHERE_REQ_NUM_TO 
+          AND  &P_WHERE_TRX_DATE_FROM
+          AND  &P_WHERE_TRX_DATE_TO
+          AND  &P_WHERE_TRX_TYPE
+          AND  nvl(P1.FULL_NAME,'~')  =  nvl(:P_receiver,nvl(P1.FULL_NAME,'~'))
+          AND  &P_WHERE_BUYER
+          AND (( :P_po_num_from is null
+          	   and :P_po_num_to is null
+          	   and :P_vendor_from is null
+          	   and :P_vendor_to is null
+          	   and :P_rma_num_from is null
+          	   and :P_rma_num_to is null
+          	   and :P_customer_from is null
+          	   and :P_customer_to is null)
+               OR(:P_req_num_from is not null
+          	   or :P_req_num_to is not null))
+          AND(:P_exception is null
+              or 
+              (:P_exception is not null
+              and rct.receipt_exception_flag = :P_exception))    
+          AND RCT.TRANSFER_LPN_ID = WLPN1.LPN_ID(+)
+		  
+UNION
+SELECT   RCT.TRANSACTION_ID     TX_ID
+         ,HRU.NAME				ORG
+         ,' '|| ood.organization_code	organization_code
+         ,PLC1.DISPLAYED_FIELD  SRC_TYPE
+         ,HRU1.NAME             SRC
+         ,null                  C_FLEX_ITEM
+         ,null                  C_FLEX_CAT
+         ,RSL.ITEM_REVISION		REV
+         ,RSL.ITEM_DESCRIPTION	DES
+         ,RSH.RECEIPT_NUM       RECEIPT_NUM
+         ,RSH.SHIPMENT_NUM      DOC_NUM
+         ,TO_CHAR(RCT.TRANSACTION_DATE, 'DD/MON/YYYY HH24:MI:SS') TX_DATE
+         ,PLC2.DISPLAYED_FIELD  TX_TYPE
+         ,RCT.UNIT_OF_MEASURE   UOM
+         ,NULL                  PO_UOM
+         ,round(RCT.QUANTITY,:P_qty_precision)          QTY
+         ,RSL.SHIPMENT_UNIT_PRICE                       PRICE
+         ,PLC4.DISPLAYED_FIELD                          DOC_TYPE
+         ,''                                            BUYER_PREPARER
+         ,P.FULL_NAME                                   RECEIVER
+         ,RSH.PACKING_SLIP                              PCKING_SLIP
+--,  RCT.CREATION_DATE                               CREATION_DATE
+         ,TO_CHAR(RCT.CREATION_DATE, 'DD-Mon-YY')	    CREATION_DATE
+         ,RCT.INSPECTION_QUALITY_CODE                   Q_CODE
+         ,DECODE(RCT.RECEIPT_EXCEPTION_FLAG,'Y',:yes,'N',:no,null)      EXCEPTION   
+         ,PLC3.DISPLAYED_FIELD                          PAR_TX_TYPE
+         ,PLC.DISPLAYED_FIELD			 	            DESTINATION_TYPE
+         ,P1.FULL_NAME					                DELIVER_TO_PERSON
+         ,LOT.LOCATION_CODE				                DELIVER_TO_LOCATION
+         ,RCT.SUBINVENTORY			                    DESTINATION_SUBINVENTORY
+         ,null                                          C_FLEX_LOCATOR  
+         ,MTR.REASON_NAME		                        TX_REASON	
+         ,RSL.ITEM_ID			                        LS_ITEM_ID
+         ,RCT.TRANSACTION_ID	                        LS_TRANSACTION_ID
+         ,RCT.SHIPMENT_LINE_ID                          LS_SHIPMENT_LINE_ID
+         ,RCT.ORGANIZATION_ID                           LS_ORGANIZATION_ID
+         ,WLPN1.LICENSE_PLATE_NUMBER	LICENSE_PLATE_NUMBER, 
+--	&C_FLEX_ITEM_DISP C_flex_item_disp, 
+         (CASE WHEN &C_FLEX_ITEM_DISP LIKE '%Program error%' THEN ' '
+         		ELSE &C_FLEX_ITEM_DISP
+         		END) AS C_flex_item_disp,
+         	&C_FLEX_CAT_DISP C_flex_cat_disp, 
+         	nvl2(RCT.locator_id, &C_FLEX_LOCATOR_DISP, null) C_FLEX_LOCATOR_DISP, 
+         	PO_RCVTXRTR_new_XMLP_PKG.rcv_uom_convertformula(NULL,RCT.UNIT_OF_MEASURE,RSL.ITEM_ID,RSL.SHIPMENT_UNIT_PRICE) RCV_UOM_CONVERT
+         	--Additional 3--
+         ,gcc.segment1||'.'||gcc.segment2||'.'||gcc.segment3||'.'||gcc.segment4||'.'||gcc.segment5||'.'||gcc.segment6||'.'||gcc.segment7||'.'||gcc.segment8 ACCOUNT_VALUE
+		 
+    FROM  PO_LOOKUP_CODES                 PLC
+         ,PO_LOOKUP_CODES                 PLC1
+         ,PO_LOOKUP_CODES                 PLC2
+         ,PO_LOOKUP_CODES                 PLC3
+         ,PO_LOOKUP_CODES                 PLC4
+         ,PER_PEOPLE_F                    P1
+         ,HR_ORGANIZATION_UNITS           HRU1
+         ,HR_LOCATIONS_ALL_TL             LOT
+         ,MTL_TRANSACTION_REASONS 	      MTR
+         ,HR_ORGANIZATION_UNITS           HRU    
+         ,MTL_SYSTEM_ITEMS  MSI
+         ,MTL_CATEGORIES  MCA       
+         ,MTL_ITEM_LOCATIONS MSL
+         ,RCV_TRANSACTIONS		PAR
+         ,RCV_SHIPMENT_LINES              RSL
+         ,RCV_SHIPMENT_HEADERS            RSH
+         ,PER_PEOPLE_F                            P
+         ,RCV_TRANSACTIONS		RCT
+         ,WMS_LICENSE_PLATE_NUMBERS WLPN1
+         --Additional--
+		 ,PO_DISTRIBUTIONS_ALL  POD
+		 ,gl_code_combinations gcc
+		 ,org_organization_definitions   ood
+		 
+   WHERE   1=1
+         AND RCT.PO_DISTRIBUTION_ID = POD.PO_DISTRIBUTION_ID (+)
+		 AND gcc.code_combination_id = POD.code_combination_id
+		 AND  RCT.ORGANIZATION_ID  =  ood.ORGANIZATION_ID(+) 
+		 --ADDITIONAL----
+         AND MSI.INVENTORY_ITEM_ID (+)  =  RSL.ITEM_ID
+         AND nvl(MSI.ORGANIZATION_ID,:organization_id)   =  :organization_id
+         AND MCA.CATEGORY_ID                  =  RSL.CATEGORY_ID
+         AND MSL.INVENTORY_LOCATION_ID (+)  =  RCT.LOCATOR_ID
+         AND nvl(MSL.ORGANIZATION_ID,RCT.ORGANIZATION_ID)   =  RCT.ORGANIZATION_ID
+         AND RCT.SHIPMENT_LINE_ID            = RSL.SHIPMENT_LINE_ID
+         AND RCT.SHIPMENT_HEADER_ID          = RSH.SHIPMENT_HEADER_ID
+         AND RSH.RECEIPT_SOURCE_CODE  || ''        = 'INVENTORY'
+         AND PLC4.LOOKUP_CODE                = RCT.SOURCE_DOCUMENT_CODE
+         AND PLC4.LOOKUP_TYPE                = 'SHIPMENT SOURCE DOCUMENT TYPE'
+         AND PLC1.LOOKUP_CODE                = RSH.RECEIPT_SOURCE_CODE || ''
+         AND PLC1.LOOKUP_TYPE                = 'SHIPMENT SOURCE TYPE'
+         AND (RCT.EMPLOYEE_ID                 = P.person_id (+)
+         	 AND trunc(RCT.CREATION_DATE) BETWEEN
+         	 NVL(P.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+         	 NVL(P.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+         AND RSH.ORGANIZATION_ID             = HRU1.ORGANIZATION_ID
+         AND PAR.TRANSACTION_ID (+)		= RCT.PARENT_TRANSACTION_ID
+         AND LOT.LOCATION_ID(+)              = RCT.DELIVER_TO_LOCATION_ID
+         AND LOT.LANGUAGE(+) = USERENV('LANG')
+         AND (P1.person_id(+)                = RCT.DELIVER_TO_PERSON_ID
+         	 AND trunc(RCT.CREATION_DATE) BETWEEN
+         	 NVL(P1.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+         	 NVL(P1.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+         AND PLC.LOOKUP_CODE                 = RSL.DESTINATION_TYPE_CODE
+         AND PLC.LOOKUP_TYPE                 = 'RCV DESTINATION TYPE'
+         AND PLC2.LOOKUP_TYPE		= 'RCV TRANSACTION TYPE'
+         AND PLC2.LOOKUP_CODE		= RCT.TRANSACTION_TYPE
+         AND PLC3.LOOKUP_TYPE (+)		= 'RCV TRANSACTION TYPE'
+         AND PLC3.LOOKUP_CODE (+)		= PAR.TRANSACTION_TYPE
+         AND HRU.ORGANIZATION_ID	= RCT.ORGANIZATION_ID
+         AND &P_WHERE_ORG_ID
+         AND MTR.REASON_ID(+)                = RCT.REASON_ID
+         AND &P_WHERE_RECEIPT_NUM_FROM
+         AND &P_WHERE_RECEIPT_NUM_TO
+         AND &P_WHERE_SHIP_NUM_FROM
+         AND &P_WHERE_SHIP_NUM_TO
+         AND &P_WHERE_ITEM
+         AND &P_WHERE_CAT 
+         AND &P_WHERE_TRX_DATE_FROM
+         AND &P_WHERE_TRX_DATE_TO   
+         AND &P_WHERE_TRX_TYPE
+         AND nvl(P.FULL_NAME,'~')                      =  nvl(:P_receiver,nvl(P.FULL_NAME,'~'))
+         AND :P_buyer                                        is  NULL
+         AND &P_WHERE_SHIP_NUM_FROM
+         AND &P_WHERE_SHIP_NUM_TO
+         AND (( :P_po_num_from is null
+         	and :P_po_num_to is null
+            and :P_req_num_from is null
+         	and :P_req_num_to is null
+         	and :P_vendor_from is null
+         	and :P_vendor_to is null
+         	and :P_rma_num_from is null
+	        and :P_rma_num_to is null
+	        and :P_customer_from is null
+	        and :P_customer_to is null)
+             OR(:P_ship_num_from is not  null       
+	         or :P_ship_num_to      is not null))
+         and     nvl(p.business_group_id,0)  = (select nvl(max(fsp.business_group_id),0)
+         				from financials_system_parameters fsp) 
+         and trunc(sysdate) between nvl(p.effective_start_date,trunc(sysdate)) and nvl(p.effective_end_date,trunc(sysdate))
+         and (  ( nvl(p1.business_group_id,0)   = (select nvl(max(fsp.business_group_id),0)
+         				from financials_system_parameters fsp) )
+                  or NVL(rct.deliver_to_person_id, 0) = 0  )   
+         and trunc(sysdate) between nvl(p1.effective_start_date,trunc(sysdate)) and nvl(p1.effective_end_date,trunc(sysdate))
+         AND  (:P_exception is null
+                  or 
+                    	(:P_exception is not null
+                    	and rct.receipt_exception_flag = :P_exception))    
+         AND RCT.TRANSFER_LPN_ID = WLPN1.LPN_ID(+)
+		 
+UNION
+
+SELECT   rct.transaction_id tx_id,
+         hru.NAME org,
+	     ' '|| ood.organization_code	organization_code,
+         plc1.displayed_field src_type,
+         DECODE(rct.source_document_code,
+                'PO', pov.vendor_name,
+                oev.NAME
+               ) src,
+         null c_flex_item,
+         null c_flex_cat,
+         rsl.item_revision rev,
+         rsl.item_description des,
+         rsh.receipt_num receipt_num,
+         '' doc_num,
+         TO_CHAR(rct.transaction_date, 'DD/MON/YYYY HH24:MI:SS') tx_date,
+         plc2.displayed_field tx_type,
+         rct.unit_of_measure uom,   
+         NULL po_uom,
+         ROUND(rct.quantity, :p_qty_precision) qty,   
+         TO_NUMBER('') price,
+         '' doc_type,
+         '' buyer_preparer,
+         p.full_name receiver,
+         rsh.packing_slip pcking_slip,
+--         rct.creation_date creation_date,
+         TO_CHAR(RCT.CREATION_DATE, 'DD-Mon-YY')	CREATION_DATE,
+         rct.inspection_quality_code q_code,
+         DECODE(rct.receipt_exception_flag,
+                'Y', :yes,
+                'N', :NO,
+                NULL
+               ) EXCEPTION,
+         plc3.displayed_field par_tx_type,
+         plc.displayed_field destination_type,
+         p2.full_name deliver_to_person,
+         lot.location_code deliver_to_location,
+         '' destination_subinventory,
+         null c_flex_locator,
+         mtr.reason_name tx_reason,
+         rsl.item_id ls_item_id,
+         rct.transaction_id ls_transaction_id,
+         rct.shipment_line_id ls_shipment_line_id,
+         rct.organization_id ls_organization_id,
+         wlpn1.license_plate_number license_plate_number, 
+--	&C_FLEX_ITEM_DISP C_flex_item_disp, 
+        (CASE WHEN &C_FLEX_ITEM_DISP LIKE '%Program error%' THEN ' '
+        		ELSE &C_FLEX_ITEM_DISP END ) AS C_flex_item_disp,
+         &C_FLEX_CAT_DISP C_flex_cat_disp, 
+         nvl2(rct.locator_id, &C_FLEX_LOCATOR_DISP, null) C_FLEX_LOCATOR_DISP, 
+         PO_RCVTXRTR_new_XMLP_PKG.rcv_uom_convertformula(NULL,rct.unit_of_measure,rsl.item_id,TO_NUMBER('')) RCV_UOM_CONVERT
+	--Additional 4--
+        ,gcc.segment1||'.'||gcc.segment2||'.'||gcc.segment3||'.'||gcc.segment4||'.'||gcc.segment5||'.'||gcc.segment6||'.'||gcc.segment7||'.'||gcc.segment8 ACCOUNT_VALUE
+		
+FROM     po_lookup_codes plc,
+         po_lookup_codes plc1,
+         po_lookup_codes plc2,
+         po_lookup_codes plc3,
+         per_people_f p2,
+         hr_locations_all_tl lot,
+         mtl_transaction_reasons mtr,
+         po_vendors pov,
+         hr_organization_units hru,
+         mtl_system_items msi,
+         mtl_categories mca,
+         mtl_item_locations msl,
+         rcv_transactions par,
+         rcv_shipment_lines rsl,
+         rcv_shipment_headers rsh,
+         per_people_f p,
+         rcv_transactions rct,
+         wms_license_plate_numbers wlpn1,
+         oe_sold_to_orgs_v oev
+	     --Additional--
+		 ,PO_DISTRIBUTIONS_ALL  POD
+		 ,gl_code_combinations gcc
+		 ,org_organization_definitions   ood
+         			
+WHERE   1=1
+		AND RCT.PO_DISTRIBUTION_ID = POD.PO_DISTRIBUTION_ID (+)
+		AND gcc.code_combination_id = POD.code_combination_id
+		AND  RCT.ORGANIZATION_ID  =  ood.ORGANIZATION_ID(+) 
+		--ADDITIONAL----
+         AND msi.inventory_item_id(+) = rsl.item_id
+         AND msi.organization_id(+) = :organization_id
+         AND mca.category_id = rsl.category_id
+         AND msl.inventory_location_id(+) = rct.locator_id
+         AND msl.organization_id(+) = rct.organization_id
+         AND rct.source_document_code IN('PO', 'RMA')
+         AND rsh.receipt_source_code IN('VENDOR', 'CUSTOMER')
+         AND rct.shipment_line_id = rsl.shipment_line_id
+         AND rct.shipment_header_id = rsh.shipment_header_id
+         AND (    rct.employee_id = p.person_id(+)
+              AND TRUNC(rct.creation_date) BETWEEN NVL(p.effective_start_date, TRUNC(rct.creation_date)) AND NVL(p.effective_end_date, TRUNC(rct.creation_date)))
+         AND plc1.lookup_code = rsh.receipt_source_code
+         AND plc1.lookup_type = 'SHIPMENT SOURCE TYPE'
+         AND rsh.vendor_id = pov.vendor_id(+)
+         AND par.transaction_id(+) = rct.parent_transaction_id
+         AND lot.location_id(+) = rct.deliver_to_location_id
+         AND lot.LANGUAGE(+) = USERENV('LANG')
+         AND (    p2.person_id(+) = rct.deliver_to_person_id
+              AND TRUNC(rct.creation_date) BETWEEN NVL(p2.effective_start_date, TRUNC(rct.creation_date)) AND NVL(p2.effective_end_date, TRUNC(rct.creation_date)))
+         AND plc.lookup_code = rct.destination_type_code
+         AND plc.lookup_type = 'RCV DESTINATION TYPE'
+         AND plc2.lookup_type = 'RCV TRANSACTION TYPE'
+         AND plc2.lookup_code = rct.transaction_type
+         AND plc3.lookup_type(+) = 'RCV TRANSACTION TYPE'
+         AND plc3.lookup_code(+) = par.transaction_type
+         AND hru.organization_id = rct.organization_id
+         AND &p_where_org_id
+         AND mtr.reason_id(+) = rct.reason_id
+         AND &p_where_receipt_num_from
+         AND &p_where_receipt_num_to
+         AND &p_where_ship_num_from
+         AND &p_where_ship_num_to
+         AND &p_where_item
+         AND &p_where_cat
+         AND &p_where_trx_date_from
+         AND &p_where_trx_date_to
+         AND &p_where_trx_type
+         AND NVL(p.full_name, '~') = NVL(:p_receiver, NVL(p.full_name, '~'))
+         AND :p_buyer IS NULL
+         AND &p_where_vendor_from
+         AND &p_where_vendor_to
+         AND rct.transaction_type = 'UNORDERED'
+         AND (( :p_req_num_from IS NULL
+                  AND :p_req_num_to IS NULL
+                  AND :p_po_num_from IS NULL
+                  AND :p_po_num_to IS NULL
+                  AND :p_rma_num_from IS NULL
+                  AND :p_rma_num_to IS NULL
+                  AND :p_customer_from IS NULL
+                  AND :p_customer_to IS NULL)
+              OR (:p_vendor_from IS NOT NULL
+                  OR :p_vendor_to IS NOT NULL))
+         AND NVL(p.business_group_id, 0) = (SELECT NVL(MAX(fsp.business_group_id), 0) FROM   financials_system_parameters fsp)
+         AND TRUNC(SYSDATE) BETWEEN NVL(p.effective_start_date, TRUNC(SYSDATE)) AND NVL(p.effective_end_date, TRUNC(SYSDATE))
+         AND ((NVL(p2.business_group_id, 0) = (SELECT NVL(MAX(fsp.business_group_id), 0)
+                                                  FROM   financials_system_parameters fsp))
+              OR NVL(rct.deliver_to_person_id, 0) = 0)   
+         AND TRUNC(SYSDATE) BETWEEN NVL(p2.effective_start_date, TRUNC(SYSDATE)) AND NVL(p2.effective_end_date, TRUNC(SYSDATE))
+         AND (:p_exception IS NULL
+              OR (:p_exception IS NOT NULL
+               AND rct.receipt_exception_flag = :p_exception))
+         AND rct.transfer_lpn_id = wlpn1.lpn_id(+)
+         AND oev.customer_id(+) = rsh.customer_id
+
+UNION
+SELECT  rct.transaction_id	TX_ID
+         ,HRU.name		ORG
+         ,' '|| ood.organization_code	organization_code
+         ,plc1.displayed_field	SRC_TYPE
+         ,oev.name		src
+         ,null                                     C_FLEX_ITEM
+         ,null                                      C_FLEX_CAT
+         ,rsl.item_revision	REV
+         ,rsl.item_description	DES
+         ,rsh.receipt_num		receipt_num
+         ,to_char(oeh.order_number) || '-' || to_char(oel.line_number)	doc_num	
+         ,TO_CHAR(rct.transaction_date, 'DD/MON/YYYY HH24:MI:SS')	tx_date
+         ,plc2.displayed_field	tx_type
+         ,RCT.UNIT_OF_MEASURE	UOM   
+         ,NULL      PO_UOM
+         ,RCT.QUANTITY		QTY   
+         ,rsl.shipment_unit_price	PRICE
+         ,'RMA'			DOC_TYPE
+         ,to_char(null)			BUYER_PREPARER
+         ,P1.FULL_NAME			RECEIVER
+         ,RSH.PACKING_SLIP		PCKING_SLIP
+--,       RCT.CREATION_DATE		CREATION_DATE
+         ,TO_CHAR(RCT.CREATION_DATE, 'DD-Mon-YY')	CREATION_DATE
+         ,RCT.INSPECTION_QUALITY_CODE     Q_CODE
+         ,DECODE(RCT.RECEIPT_EXCEPTION_FLAG,'Y',:yes,'N',:no,null)      EXCEPTION
+         ,PLC3.DISPLAYED_FIELD        PAR_TX_TYPE
+         ,PLC.DISPLAYED_FIELD	   	  DESTINATION_TYPE
+         ,P3.FULL_NAME			      DELIVER_TO_PERSON
+         ,LOT.LOCATION_CODE       	  DELIVER_TO_LOCATION
+         ,RCT.SUBINVENTORY 	          DESTINATION_SUBINVENTORY
+         ,null                        C_FLEX_LOCATOR
+         ,MTR.REASON_NAME			  TX_REASON
+         ,RSL.ITEM_ID			      LS_ITEM_ID
+         ,RCT.TRANSACTION_ID		  LS_TRANSACTION_ID
+         ,RCT.SHIPMENT_LINE_ID        LS_SHIPMENT_LINE_ID
+         ,RCT.ORGANIZATION_ID         LS_ORGANIZATION_ID
+         ,WLPN1.LICENSE_PLATE_NUMBER LICENSE_PLATE_NUMBER, 
+--	&C_FLEX_ITEM_DISP C_flex_item_disp, 
+         (CASE WHEN &C_FLEX_ITEM_DISP LIKE '%Program error%' THEN ' '
+        		ELSE &C_FLEX_ITEM_DISP
+        		END ) AS C_flex_item_disp,
+          &C_FLEX_CAT_DISP C_flex_cat_disp, 
+          nvl2(rct.locator_id, &C_FLEX_LOCATOR_DISP, null) C_FLEX_LOCATOR_DISP, 
+          PO_RCVTXRTR_new_XMLP_PKG.rcv_uom_convertformula(NULL,RCT.UNIT_OF_MEASURE,RSL.ITEM_ID,rsl.shipment_unit_price) RCV_UOM_CONVERT
+        	--Additional 5--
+		,gcc.segment1||'.'||gcc.segment2||'.'||gcc.segment3||'.'||gcc.segment4||'.'||gcc.segment5||'.'||gcc.segment6||'.'||gcc.segment7||'.'||gcc.segment8  ACCOUNT_VALUE
+        
+FROM     RCV_transactions rct
+         ,RCV_transactions par
+         ,hr_organization_units hru
+         ,rcv_shipment_headers rsh
+         ,po_lookup_codes	plc1
+         ,po_lookup_codes plc2
+         ,oe_sold_to_orgs_v oev
+         ,rcv_shipment_lines rsl
+         ,MTL_SYSTEM_ITEMS  MSI
+         ,MTL_CATEGORIES  MCA
+         ,per_people_f p1
+         ,per_people_f p3
+         ,po_lookup_codes	plc3
+         ,po_lookup_codes plc
+         ,HR_LOCATIONS_ALL_TL LOT
+         ,MTL_TRANSACTION_REASONS  MTR
+         ,MTL_ITEM_LOCATIONS MSL
+         ,OE_ORDER_HEADERS	OEH
+         ,OE_ORDER_LINES		OEL
+         ,WMS_LICENSE_PLATE_NUMBERS WLPN1
+         --Additional--
+		 ,PO_DISTRIBUTIONS_ALL  POD
+		 ,gl_code_combinations gcc
+		 ,org_organization_definitions   ood
+		 
+WHERE       1=1
+         AND RCT.PO_DISTRIBUTION_ID = POD.PO_DISTRIBUTION_ID (+)
+		 AND gcc.code_combination_id = POD.code_combination_id
+		 AND  RCT.ORGANIZATION_ID  =  ood.ORGANIZATION_ID(+) 
+		--ADDITIONAL----
+         AND RCT.SOURCE_DOCUMENT_CODE     = 'RMA'
+         AND  RSH.RECEIPT_SOURCE_CODE     || ''    = 'CUSTOMER'
+         AND  PAR.TRANSACTION_ID (+)	        = RCT.PARENT_TRANSACTION_ID
+         AND  hru.organization_id	= rct.organization_id
+         AND  &P_WHERE_ORG_ID
+         AND PLC1.LOOKUP_CODE                = RSH.RECEIPT_SOURCE_CODE  || ''
+         AND PLC1.LOOKUP_TYPE                = 'SHIPMENT SOURCE TYPE'
+         AND PLC.LOOKUP_CODE                 = RCT.DESTINATION_TYPE_CODE
+         AND PLC.LOOKUP_TYPE                 = 'RCV DESTINATION TYPE'
+         AND oev.customer_id	(+)	= rsh.customer_id
+         AND RCT.SHIPMENT_LINE_ID            = RSL.SHIPMENT_LINE_ID
+         AND RCT.SHIPMENT_HEADER_ID          = RSH.SHIPMENT_HEADER_ID
+         AND RSH.shipment_header_id		= rsl.shipment_header_id
+         AND MCA.CATEGORY_ID (+)                =  RSL.CATEGORY_ID AND 	MSI.INVENTORY_ITEM_ID (+)  =  RSL.ITEM_ID
+         AND MSL.INVENTORY_LOCATION_ID (+)  =  RCT.LOCATOR_ID
+         AND nvl(MSL.ORGANIZATION_ID,RCT.ORGANIZATION_ID)   =  RCT.ORGANIZATION_ID
+         AND PLC2.LOOKUP_TYPE	 	= 'RCV TRANSACTION TYPE'
+         AND PLC2.LOOKUP_CODE                = RCT.TRANSACTION_TYPE 
+         AND (RCT.EMPLOYEE_ID                 = P1.PERSON_ID (+)
+         AND trunc(RCT.CREATION_DATE) BETWEEN
+         NVL(P1.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+         NVL(P1.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+         AND  PLC3.LOOKUP_TYPE  (+)              = 'RCV TRANSACTION TYPE'
+         AND  PLC3.LOOKUP_CODE  (+)              = PAR.TRANSACTION_TYPE
+         AND  (P3.PERSON_ID(+)              = RCT.DELIVER_TO_PERSON_ID
+         AND TRUNC(RCT.CREATION_DATE)  BETWEEN
+         NVL(P3.EFFECTIVE_START_DATE, trunc(RCT.CREATION_DATE)) AND
+         NVL(P3.EFFECTIVE_END_DATE, trunc(RCT.CREATION_DATE)))
+         AND LOT.LOCATION_ID(+)              = RCT.DELIVER_TO_LOCATION_ID
+         AND LOT.LANGUAGE(+) = USERENV('LANG')
+         AND MTR.REASON_ID(+)                = RCT.REASON_ID
+         AND OEH.header_id		= rct.oe_order_header_id
+         AND oel.line_id		= rct.oe_order_line_id
+         AND &P_WHERE_RECEIPT_NUM_FROM
+         AND &P_WHERE_RECEIPT_NUM_TO
+         AND &P_WHERE_SHIP_NUM_FROM
+         AND &P_WHERE_SHIP_NUM_TO
+         AND &P_WHERE_ITEM
+         AND &P_WHERE_CAT 
+         AND &P_WHERE_RMA_NUM_FROM
+         AND &P_WHERE_RMA_NUM_TO
+         AND &P_WHERE_TRX_DATE_FROM
+         AND &P_WHERE_TRX_DATE_TO   
+         AND &P_WHERE_TRX_TYPE
+         AND &P_WHERE_CUSTOMER_FROM
+         AND &P_WHERE_CUSTOMER_TO
+         AND ((  :P_req_num_from is null
+             AND :P_req_num_to is null
+             AND :P_po_num_from is null
+             AND :P_po_num_to is null
+             AND :P_vendor_from is null
+             AND :P_vendor_to is null)
+             OR( :P_customer_from is not  null
+	         OR :P_customer_to is not null
+              OR :P_rma_num_from is not  null       
+	          OR :P_rma_num_to      is not null))
+         AND  nvl(P1.FULL_NAME,'~')  =  NVL(:P_receiver,NVL(P1.FULL_NAME,'~'))
+         AND :P_buyer  IS  NULL
+         AND RCT.TRANSFER_LPN_ID = WLPN1.LPN_ID(+)
+)
+order by 3, 4, 5, 36, 37, 9, 10, 11, 35, 14, 2, 19, 1, 33, 31, 7, 8, 38,12, 34, 13, 15, 16, 32, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 30
+
+
+]]>
+</sqlStatement><sqlStatement name="Q_lot_and_serial_control">
+<![CDATA[
+SELECT distinct lot_control_code,
+                    serial_number_control_code
+FROM mtl_system_items
+             WHERE 
+(:LS_item_id is not null and inventory_item_id = :LS_item_id)  and
+(:LS_organization_id is not null and organization_id   = :LS_organization_id)
+]]>
+</sqlStatement><sqlStatement name="Q_lot">
+<![CDATA[
+SELECT lot_num lot_number
+FROM rcv_lot_transactions
+ WHERE :lot_control_code = 2 
+  AND lot_transaction_type = 'TRANSACTION'
+  AND transaction_id = :ls_transaction_id
+ UNION 
+
+SELECT lot_num lot_number
+FROM rcv_lot_transactions
+ WHERE :lot_control_code = 2 
+  AND lot_transaction_type <> 'TRANSACTION'
+  AND shipment_line_id = :ls_shipment_line_id
+ UNION 
+
+SELECT TO_CHAR( -100 ) lot_number
+FROM DUAL
+ WHERE :lot_control_code <> 2 
+ UNION 
+
+SELECT TO_CHAR( -100 ) lot_number
+FROM DUAL
+ WHERE 0 = ( SELECT COUNT( lot_num ) FROM rcv_lot_transactions
+              WHERE ROWNUM = 1 )
+
+]]>
+</sqlStatement><sqlStatement name="Q_serial">
+<![CDATA[
+select distinct decode(:lot_control_code,2,rst.lot_num,-100)  lot_number_join
+, rst.serial_num	serial_number
+from rcv_serial_transactions rst
+WHERE :serial_number_control_cod in (2,3,5,6) 
+   and rst.serial_transaction_type = 'TRANSACTION'
+   and rst.transaction_id = :ls_transaction_id 
+ and decode ( :lot_control_code , 2 , rst.lot_num , - 100 )=:lot_number
+
+]]>
+</sqlStatement></dataQuery>
+<dataTrigger name="afterParameterFormTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.afterpform"/>
+<dataTrigger name="beforeReportTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.beforereport"/>
+<dataStructure>
+
+<!--element name="P_WHERE_ORG_ID" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_WHERE_ORG_ID"/>
+<element name="P_STRUCT_NUM" dataType="number" value="PO_RCVTXRTR_new_XMLP_PKG.P_STRUCT_NUM"/>
+<element name="P_FLEX_LOCATOR" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_FLEX_LOCATOR"/>
+<element name="P_ORG_DISPLAYED" dataType="varchar2" value="PO_RCVTXRTR_new_XMLP_PKG.P_ORG_DISPLAYED"/-->
+<group name="G_c_company" dataType="varchar2" source="Q_company">
+<element name="c_company" dataType="varchar2" value="C_COMPANY"/>
+<element name="c_organization_id" dataType="number" value="C_ORGANIZATION_ID"/>
+<element name="GL_CURRENCY" dataType="varchar2" value="GL_CURRENCY"/>
+<element name="STRUCTURE_ACC" dataType="number" value="STRUCTURE_ACC"/>
+<element name="STRUCTURE_CAT" dataType="number" value="STRUCTURE_CAT"/>
+<element name="c_yes" dataType="varchar2" value="C_YES"/>
+<element name="c_no" dataType="varchar2" value="C_NO"/>
+<element name="c_category_set_id" dataType="number" value="C_CATEGORY_SET_ID"/>
+</group>
+<group name="G_c_rcv_trx" dataType="varchar2" source="Q_rcv_trx">
+<element name="SRC_TYPE" dataType="varchar2" value="SRC_TYPE"/>
+<element name="SRC" dataType="varchar2" value="SRC"/>
+<element name="C_FLEX_ITEM" dataType="varchar2" value="C_FLEX_ITEM"/>
+<element name="C_flex_item_disp"  dataType="varchar2"  value="C_flex_item_disp"/>
+<element name="C_flex_cat_disp"  dataType="varchar2"  value="C_flex_cat_disp"/>
+<element name="C_FLEX_CAT" dataType="varchar2" value="C_FLEX_CAT"/>
+<element name="RECEIPT_NUM" dataType="varchar2" value="RECEIPT_NUM"/>
+<element name="DOC_NUM" dataType="varchar2" value="DOC_NUM"/>
+<element name="TX_DATE" dataType="varchar2" value="TX_DATE"/>
+<element name="LICENSE_PLATE_NUMBER" dataType="varchar2" value="LICENSE_PLATE_NUMBER"/>
+<element name="PO_UOM" dataType="varchar2" value="PO_UOM"/>
+<element name="ORG" dataType="varchar2" value="ORG"/>
+<element name="organization_code" dataType="varchar2" value="organization_code"/>
+<element name="EXTENDED_VALUE" dataType="number" value="EXTENDED_VALUE"/>
+<element name="ACCOUNT_VALUE" dataType="varchar2" value="ACCOUNT_VALUE"/>
+<element name="RECEIVER" dataType="varchar2" value="RECEIVER"/>
+<element name="TX_ID" dataType="number" value="TX_ID"/>
+<element name="LS_SHIPMENT_LINE_ID" dataType="number" value="LS_SHIPMENT_LINE_ID"/>
+<element name="LS_ITEM_ID" dataType="number" value="LS_ITEM_ID"/>
+<element name="REV" dataType="varchar2" value="REV"/>
+<element name="DES" dataType="varchar2" value="DES"/>
+<element name="C_FLEX_LOCATOR_DISP"  dataType="varchar2"  value="C_FLEX_LOCATOR_DISP"/>
+<element name="C_FLEX_LOCATOR" dataType="varchar2" value="C_FLEX_LOCATOR"/>
+<element name="TX_TYPE" dataType="varchar2" value="TX_TYPE"/>
+<element name="LS_ORGANIZATION_ID" dataType="number" value="LS_ORGANIZATION_ID"/>
+<element name="UOM" dataType="varchar2" value="UOM"/>
+<element name="RCV_UOM_CONVERT"  dataType="number"  value="RCV_UOM_CONVERT"/>
+<element name="C_1" function="count" dataType="number" value="G_LICENSE_PLATE_NUMBER.LS_TRANSACTION_ID"/>
+<element name="QTY" dataType="number" value="QTY"/>
+<element name="PRICE" dataType="number" value="PRICE"/>
+<element name="LS_TRANSACTION_ID" dataType="number" value="LS_TRANSACTION_ID"/>
+<element name="DOC_TYPE" dataType="varchar2" value="DOC_TYPE"/>
+<element name="BUYER_PREPARER" dataType="varchar2" value="BUYER_PREPARER"/>
+<element name="PCKING_SLIP" dataType="varchar2" value="PCKING_SLIP"/>
+<element name="CREATION_DATE" dataType="date" value="CREATION_DATE"/>
+<element name="Q_CODE" dataType="varchar2" value="Q_CODE"/>
+<element name="EXCEPTION" dataType="varchar2" value="EXCEPTION"/>
+<element name="PAR_TX_TYPE" dataType="varchar2" value="PAR_TX_TYPE"/>
+<element name="DESTINATION_TYPE" dataType="varchar2" value="DESTINATION_TYPE"/>
+<element name="DELIVER_TO_PERSON" dataType="varchar2" value="DELIVER_TO_PERSON"/>
+<element name="DELIVER_TO_LOCATION" dataType="varchar2" value="DELIVER_TO_LOCATION"/>
+<element name="DESTINATION_SUBINVENTORY" dataType="varchar2" value="DESTINATION_SUBINVENTORY"/>
+<element name="TX_REASON" dataType="varchar2" value="TX_REASON"/>
+<element name="P_RMA_FROM" dataType="varchar2" value="P_RMA_FROM"/>
+<element name="P_RMA_TO" dataType="varchar2" value="P_RMA_TO"/>
+<element name="P_EXCEPT" dataType="varchar2" value="P_EXCEPT"/>
+<element name="P_DETAIL_SUMM" dataType="varchar2" value="P_DETAIL_SUMM"/>
+<element name="P_INC_LAS" dataType="varchar2" value="P_INC_LAS"/>
+<element name="REPORT_DATE" dataType="varchar2" value="REPORT_DATE"/>
+<element name="P_ORG" dataType="varchar2" value="P_ORG"/>
+<group name="G_lot_control_code" dataType="varchar2" source="Q_lot_and_serial_control">
+<element name="lot_control_code" dataType="number" value="LOT_CONTROL_CODE"/>
+<element name="serial_number_control_cod" dataType="number" value="SERIAL_NUMBER_CONTROL_CODE"/>
+<group name="G_lot_number" dataType="varchar2" source="Q_lot">
+<element name="lot_number" dataType="varchar2" value="LOT_NUMBER"/>
+<group name="G_lot_number_join" dataType="varchar2" source="Q_serial">
+<element name="lot_number_join" dataType="varchar2" value="LOT_NUMBER_JOIN"/>
+<element name="serial_number" dataType="varchar2" value="SERIAL_NUMBER"/>
+</group>
+</group>
+</group>
+</group>
+<element name="yes" function="first" dataType="varchar2" value="G_c_company.c_yes"/>
+<element name="company" function="first" dataType="varchar2" value="G_c_company.c_company"/>
+<element name="no" function="first" dataType="varchar2" value="G_c_company.c_no"/>
+<element name="category_set_id" function="first" dataType="varchar2" value="G_c_company.c_category_set_id"/>
+<element name="organization_id" function="first" dataType="varchar2" value="G_c_company.c_organization_id"/>
+<element name="count_records" function="count" dataType="number" value="G_LICENSE_PLATE_NUMBER.LS_TRANSACTION_ID"/>
+</dataStructure>
+<dataTrigger name="afterReportTrigger" source="PO_RCVTXRTR_new_XMLP_PKG.afterreport()"/>
+</dataTemplate>

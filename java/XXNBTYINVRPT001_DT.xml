@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding ="ISO-8859-15"?>
+<!-- $Header: XXNBTYINVRPT001_DT.xml 115.2 2016/03/11 07:41:38 xdouser noship $ -->
+<!-- dbdrv: none -->
+
+<dataTemplate description = "NBTY Miscellaneous Variance Transaction Report " name = "XXNBTYINVRPT001_DT">
+<!--  
+ *  File           : XXNBTYINVRPT001_DT.xml
+ *  Author         : JM Cuales, Accenture
+ *  Date           Author                    Description
+ *  ____________________________________________________________________________________________________
+ *  2016-MAR-11    JM Cuales                 Initial Creation
+ *  2016-APR-22    Khristine Austero         Add distinct in the query
+ *  2016-APR-26    Khristine Austero         Change input parameter date datatype to date from varchar2
+ 
+ -->
+ <properties>
+  <property name="xml_tag_case" value="upper" />
+
+ </properties>
+  <parameters>
+    <parameter name = "P_OPERATING_UNIT" dataType = "VARCHAR2"/>
+    <parameter name = "P_ORG_ID" dataType = "VARCHAR2"/>
+    <parameter name = "P_ENTITY" dataType = "VARCHAR2"/>
+    <parameter name = "P_DATE_FROM" dataType = "date"/>
+    <parameter name = "P_DATE_TO" dataType = "date"/>
+    <parameter name = "P_BATCH_ID" dataType = "VARCHAR2"/>
+    <parameter name = "P_LOT_NUM" dataType = "VARCHAR2"/>
+    <parameter name = "P_ITEM_NUM" dataType = "VARCHAR2"/>
+    <parameter name = "P_TRN_TYPE" dataType = "VARCHAR2"/>
+    <parameter name = "P_SORT_BY" dataType = "VARCHAR2"/>
+  </parameters>
+
+  <dataQuery>
+    <sqlStatement name = "MISC_VAR_SQL">
+      <![CDATA[
+         SELECT OPERATING_UNIT
+              , '="' ||ORGANIZATION_CODE|| '"' AS ORGANIZATION_CODE
+              , LEGAL_ENTITY
+              , TO_CHAR(TRANSACTION_DTE,'DD-Mon-YY') AS TRANSACTION_DATE
+              , TRANSACTION_REFERENCE
+              , TRANSACTION_ID
+              , TRANSACTION_TYPE_ID
+              , TRANSACTION_TYPE_NAME
+              , SUBINVENTORY_CODE
+              , COST_ELEMENT
+              , INVENTORY_ITEM_ID
+              , ITEM_NUMBER
+              , BATCH_ID_NUMBER
+              , ITEM_TYPE
+              , TRANSACTION_UOM
+              , TRANSACTION_QUANTITY
+              , TOTAL_VALUE
+              , REASON_ID
+              , REASON_CODE
+              , LOT_NUMBER
+              , BATCH_COMPLETE
+              , BATCH_SIZE
+
+         FROM   (
+                SELECT hou.NAME AS OPERATING_UNIT
+                     , ood.ORGANIZATION_CODE
+                     , xep.NAME AS LEGAL_ENTITY
+                     , mmt.TRANSACTION_DATE AS TRANSACTION_DTE
+                     , mmt.TRANSACTION_REFERENCE
+                     , mmt.TRANSACTION_ID
+                     , mmt.TRANSACTION_TYPE_ID
+                     , mtt.TRANSACTION_TYPE_NAME
+                     , mmt.SUBINVENTORY_CODE
+                     -- COST ELEMENT --
+                     , DECODE(gxel.USAGE_IND,1,'Material',2,'Overhead' ,3, 'Resource') AS COST_ELEMENT
+                     ---------------
+                     , mmt.INVENTORY_ITEM_ID    
+                     , msib.SEGMENT1 AS ITEM_NUMBER
+                     , mmt.TRANSACTION_REFERENCE AS BATCH_ID_NUMBER
+                     , msib.ITEM_TYPE
+                     , mmt.TRANSACTION_UOM
+                     , mmt.TRANSACTION_QUANTITY
+                     ---------- Total Value 
+                     --, gxel.BASE_AMOUNT AS TOTAL_VALUE
+                     ,(CASE WHEN UPPER(MTT.TRANSACTION_TYPE_NAME) = UPPER('Miscellaneous issue') THEN 
+                                 0-ABS(gxel.BASE_AMOUNT) 
+                           WHEN UPPER(MTT.TRANSACTION_TYPE_NAME) = UPPER('Miscellaneous receipt') THEN 
+                                ABS(gxel.BASE_AMOUNT)
+                           ELSE gxel.BASE_AMOUNT
+                           END) AS TOTAL_VALUE
+                     -------
+                     , mmt.REASON_ID
+                     , mtt.ATTRIBUTE1 AS REASON_CODE
+                     , mmt.ATTRIBUTE1 AS LOT_NUMBER
+                     , mmt.ATTRIBUTE2 AS BATCH_COMPLETE
+                     , mmt.ATTRIBUTE3 AS BATCH_SIZE
+                FROM   MTL_MATERIAL_TRANSACTIONS  mmt
+                     , MTL_SYSTEM_ITEMS_B         msib
+                     , MTL_TRANSACTION_TYPES      mtt
+                     , HR_OPERATING_UNITS hou
+                     , ORG_ORGANIZATION_DEFINITIONS ood
+                     , XLE_ENTITY_PROFILES xep
+                     , MTL_PARAMETERS mp
+                     , GMF_XLA_EXTRACT_HEADERS gxeh
+                     , GMF_XLA_EXTRACT_LINES gxel
+                     , CM_CMPT_DTL  a
+                     , CM_CMPT_MST b
+                WHERE  mmt.INVENTORY_ITEM_ID = msib.INVENTORY_ITEM_ID
+                AND    hou.DEFAULT_LEGAL_CONTEXT_ID = ood.LEGAL_ENTITY
+                AND    mmt.ORGANIZATION_ID = ood.ORGANIZATION_ID
+                AND    mmt.ORGANIZATION_ID = msib.ORGANIZATION_ID
+                AND    ood.LEGAL_ENTITY = xep.LEGAL_ENTITY_ID
+                AND    mtt.TRANSACTION_TYPE_ID = mmt.TRANSACTION_TYPE_ID
+                AND    mp.ORGANIZATION_ID = mmt.ORGANIZATION_ID
+                AND    mp.PROCESS_ENABLED_FLAG = 'Y'
+                AND    gxeh.TRANSACTION_ID = mmt.TRANSACTION_ID
+                AND    gxeh.ORGANIZATION_ID = mmt.ORGANIZATION_ID
+                AND    gxeh.INVENTORY_ITEM_ID = mmt.INVENTORY_ITEM_ID
+                AND    gxeh.VALUATION_COST_TYPE = 'STD'
+                AND    gxeh.HEADER_ID = gxel.HEADER_ID
+                AND    gxel.JOURNAL_LINE_TYPE= 'INV'
+                AND    a.inventory_item_id = msib.inventory_item_id
+                AND    a.cost_cmpntcls_id = b.cost_cmpntcls_id
+                AND    a.organization_id = mp.organization_id
+                -- PARAMETERS ---
+                AND    ((TRUNC(mmt.TRANSACTION_DATE) >= TRUNC(:P_DATE_FROM))
+                       OR :P_DATE_FROM IS NULL)
+                AND    ((TRUNC(mmt.TRANSACTION_DATE) < (TRUNC(:P_DATE_TO)+1))
+                       OR :P_DATE_TO IS NULL)
+                AND    (mmt.TRANSACTION_REFERENCE = :P_BATCH_ID
+                       OR :P_BATCH_ID IS NULL)
+                AND    (mtt.TRANSACTION_TYPE_NAME = :P_TRN_TYPE
+                       OR :P_TRN_TYPE IS NULL)
+                AND    (msib.SEGMENT1 = :P_ITEM_NUM
+                       OR :P_ITEM_NUM IS NULL)
+                AND    (hou.NAME = :P_OPERATING_UNIT
+                       OR :P_OPERATING_UNIT IS NULL)
+                AND    (ood.ORGANIZATION_CODE = :P_ORG_ID
+                       OR :P_ORG_ID IS NULL)
+                AND    (xep.NAME = :P_ENTITY
+                       OR :P_ENTITY IS NULL)
+                AND    (mmt.ATTRIBUTE1 = :P_LOT_NUM
+                       OR :P_LOT_NUM IS NULL)
+                UNION ALL
+                SELECT hou.NAME AS OPERATING_UNIT
+                     , ood.ORGANIZATION_CODE
+                     , xep.NAME AS LEGAL_ENTITY
+                     , mmt.TRANSACTION_DATE AS TRANSACTION_DTE
+                     , mmt.TRANSACTION_REFERENCE
+                     , mmt.TRANSACTION_ID
+                     , mmt.TRANSACTION_TYPE_ID
+                     , mtt.TRANSACTION_TYPE_NAME
+                     , mmt.SUBINVENTORY_CODE
+                     -- COST ELEMENT --
+                     , DECODE(mta.COST_ELEMENT_ID, 1,'Material',2,'Overhead' ,3, 'Resource',5,'Overhead') AS COST_ELEMENT
+                     ---------------
+                     , mmt.INVENTORY_ITEM_ID    
+                     , msib.SEGMENT1 AS ITEM_NUMBER
+                     , mmt.TRANSACTION_REFERENCE AS BATCH_ID_NUMBER
+                     , msib.ITEM_TYPE
+                     , mmt.TRANSACTION_UOM
+                     , mmt.TRANSACTION_QUANTITY
+                     ---------- Total Value 
+                     --, mta.BASE_TRANSACTION_VALUE AS TOTAL_VALUE
+                     ,(CASE WHEN UPPER(MTT.TRANSACTION_TYPE_NAME) = UPPER('Miscellaneous issue') THEN 
+                                 0-ABS(mta.BASE_TRANSACTION_VALUE) 
+                           WHEN UPPER(MTT.TRANSACTION_TYPE_NAME) = UPPER('Miscellaneous receipt') THEN 
+                                ABS(mta.BASE_TRANSACTION_VALUE)
+                           ELSE mta.BASE_TRANSACTION_VALUE
+                           END ) AS TOTAL_VALUE
+                     -------
+                     , mmt.REASON_ID
+                     , mtt.ATTRIBUTE1 AS REASON_CODE
+                     , mmt.ATTRIBUTE1 AS LOT_NUMBER
+                     , mmt.ATTRIBUTE2 AS BATCH_COMPLETE
+                     , mmt.ATTRIBUTE3 AS BATCH_SIZE
+                FROM   MTL_MATERIAL_TRANSACTIONS  mmt
+                     , MTL_SYSTEM_ITEMS_B         msib
+                     , MTL_TRANSACTION_ACCOUNTS   mta
+                     , MTL_TRANSACTION_TYPES      mtt
+                     , HR_OPERATING_UNITS hou
+                     , ORG_ORGANIZATION_DEFINITIONS ood
+                     , XLE_ENTITY_PROFILES xep
+                     , MTL_PARAMETERS mp
+                     , cst_item_cost_details_v cicdv
+                     , CST_ITEM_COST_TYPE_V cictv
+                WHERE  mmt.TRANSACTION_ID = mta.TRANSACTION_ID
+                AND    mmt.INVENTORY_ITEM_ID = mta.INVENTORY_ITEM_ID
+                AND    mmt.ORGANIZATION_ID = mta.ORGANIZATION_ID
+                AND    mta.accounting_line_type NOT IN ('2')
+                AND    mmt.INVENTORY_ITEM_ID = msib.INVENTORY_ITEM_ID
+                AND    hou.DEFAULT_LEGAL_CONTEXT_ID = ood.LEGAL_ENTITY
+                AND    mmt.ORGANIZATION_ID = ood.ORGANIZATION_ID
+                AND    mmt.ORGANIZATION_ID = msib.ORGANIZATION_ID
+                AND    ood.LEGAL_ENTITY = xep.LEGAL_ENTITY_ID
+                AND    mtt.TRANSACTION_TYPE_ID = mmt.TRANSACTION_TYPE_ID
+                AND    mp.ORGANIZATION_ID = mmt.ORGANIZATION_ID
+                AND    mp.PROCESS_ENABLED_FLAG = 'N'
+                AND    cicdv.inventory_item_id = msib.inventory_item_id
+                AND    cicdv.organization_id = mp.organization_id
+                AND    cicdv.inventory_item_id = cictv.inventory_item_id
+                -- PARAMETERS ---
+                AND    ((TRUNC(mmt.TRANSACTION_DATE) >= TRUNC(:P_DATE_FROM))
+                       OR :P_DATE_FROM IS NULL)
+                AND    ((TRUNC(mmt.TRANSACTION_DATE) < (TRUNC(:P_DATE_TO)+1))
+                       OR :P_DATE_TO IS NULL)
+                AND    (mmt.TRANSACTION_REFERENCE = :P_BATCH_ID
+                       OR :P_BATCH_ID IS NULL)
+                AND    (mtt.TRANSACTION_TYPE_NAME = :P_TRN_TYPE
+                       OR :P_TRN_TYPE IS NULL)
+                AND    (msib.SEGMENT1 = :P_ITEM_NUM
+                       OR :P_ITEM_NUM IS NULL)
+                AND    (hou.NAME = :P_OPERATING_UNIT
+                       OR :P_OPERATING_UNIT IS NULL)
+                AND    (ood.ORGANIZATION_CODE = :P_ORG_ID
+                       OR :P_ORG_ID IS NULL)
+                AND    (xep.NAME = :P_ENTITY
+                       OR :P_ENTITY IS NULL)
+                AND    (mmt.ATTRIBUTE1 = :P_LOT_NUM
+                       OR :P_LOT_NUM IS NULL)
+                )
+         ORDER BY CASE WHEN :P_SORT_BY = 'Transaction Date' THEN TRANSACTION_DTE
+                       WHEN :P_SORT_BY IS NULL THEN TRANSACTION_DTE
+                       ELSE NULL
+                       END  
+                , CASE WHEN :P_SORT_BY = 'Batch ID' THEN TRANSACTION_REFERENCE
+                       WHEN :P_SORT_BY = 'Item Number' THEN ITEM_NUMBER
+                       WHEN :P_SORT_BY = 'Transaction Type' THEN TRANSACTION_TYPE_NAME
+                       WHEN :P_SORT_BY = 'Operating Unit' THEN OPERATING_UNIT
+                       WHEN :P_SORT_BY = 'Organization Unit' THEN ORGANIZATION_CODE
+                       ELSE NULL
+                       END
+   ]]>
+
+    </sqlStatement>
+  </dataQuery>
+  <dataStructure>
+    <group name = "MAIN" source = "MISC_VAR_SQL">
+         <element name = "OPERATING_UNIT" dataType="VARCHAR2" value="OPERATING_UNIT"/>
+         <element name = "ORGANIZATION_CODE" dataType="VARCHAR2" value="ORGANIZATION_CODE"/>
+         <element name = "LEGAL_ENTITY" dataType="VARCHAR2" value="LEGAL_ENTITY"/>
+         <element name = "TRANSACTION_DATE" dataType="VARCHAR2" value="TRANSACTION_DATE"/>
+         <element name = "TRANSACTION_REFERENCE" dataType="VARCHAR2" value="TRANSACTION_REFERENCE"/>
+         <element name = "TRANSACTION_ID" dataType="VARCHAR2" value="TRANSACTION_ID"/>
+         <element name = "TRANSACTION_TYPE_ID" dataType="VARCHAR2" value="TRANSACTION_TYPE_ID"/>
+         <element name = "TRANSACTION_TYPE_NAME" dataType="VARCHAR2" value="TRANSACTION_TYPE_NAME"/>
+         <element name = "SUBINVENTORY_CODE" dataType="VARCHAR2" value="SUBINVENTORY_CODE"/>
+         <element name = "COST_ELEMENT" dataType="VARCHAR2" value="COST_ELEMENT"/>
+         <element name = "INVENTORY_ITEM_ID" dataType="VARCHAR2" value="INVENTORY_ITEM_ID"/>
+         <element name = "ITEM_NUMBER" dataType="VARCHAR2" value="ITEM_NUMBER"/>
+         <element name = "BATCH_ID_NUMBER" dataType="VARCHAR2" value="BATCH_ID_NUMBER"/>
+         <element name = "ITEM_TYPE" dataType="VARCHAR2" value="ITEM_TYPE"/>
+         <element name = "TRANSACTION_UOM" dataType="VARCHAR2" value="TRANSACTION_UOM"/>
+         <element name = "TRANSACTION_QUANTITY" dataType="VARCHAR2" value="TRANSACTION_QUANTITY"/>
+         <element name = "TOTAL_VALUE" dataType="VARCHAR2" value="TOTAL_VALUE"/>
+         <element name = "REASON_ID" dataType="VARCHAR2" value="REASON_ID"/>
+         <element name = "REASON_CODE" dataType="VARCHAR2" value="REASON_CODE"/>
+         <element name = "LOT_NUMBER" dataType="VARCHAR2" value="LOT_NUMBER"/>
+         <element name = "BATCH_COMPLETE" dataType="VARCHAR2" value="BATCH_COMPLETE"/>
+         <element name = "BATCH_SIZE" dataType="VARCHAR2" value="BATCH_SIZE"/>
+    </group>
+  </dataStructure>
+</dataTemplate>
+
+
+
+

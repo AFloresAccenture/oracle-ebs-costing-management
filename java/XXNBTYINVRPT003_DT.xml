@@ -1,0 +1,390 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- $Header: XXNBTYINVRPT003_DT.xml 115.2 2016/03/17 07:41:38 xdouser noship $ -->
+<!-- dbdrv: none -->
+
+<dataTemplate name="XXNBTYINVRPT003_DT" version="1.0">
+<!--  
+ *  File           : XXNBTYINVRPT003_DT.xml
+ *  Author         : Albert John Flores, Accenture
+ *  Date           Author                    Description
+ *  ____________________________________________________________________________________________________
+ *  2016-MAR-17    Albert John Flores        Initial Creation
+ *  2016-MAR-29    Khristine Austero         DEFECT#51 change the column being used to get the QUANTITY 
+ *                                           from mmt.transaction_quantity to iob.onhand_quantity
+ *  2016-APR-07    Khristine Austero         Design Gap Change formatting and add sub total and grand total
+ *  2016-APR-17    Albert John Flores        Modified the query to get cost of non deleted records
+ *  2016-JUN-13    Steven S. Santos          CHG#1 - Corrected join condition for INVBV_ONHAND_BALANCES & MTL_MATERIAL_TRANSACTIONS
+ *                                           CHG#2 - Corrected source of the PRIMARY_UOM column
+ *                                           CHG#3 - Added ITEM_TYPE column
+ *                                           CHG#4 - Filtered out Yield Subinventory
+ *                                           CHG#5 - Corrected source of the QUANTITY column
+ *  2016-JUN-28    Steven S. Santos          CHG#6 - Updated Distinct column to retrieve correct number of records retrieved.
+ *                                           CHG#7 - Updated source column of the QUANTITY column.
+ *  2016-JUN-28    Steven S. Santos          CHG#8 - Removed LOT_NUMBER.
+ *  2016-JUN-29    Steven S. Santos          CHG#9 - Reverted the following changes: CHG#1 and CHG#7
+ *                                           CHG#10 - Rewritten script using WITH Statement
+ *  2016-JUN-29    Khristine Austero         CHG#4 - Filtered out Yield Subinventory is the SUBINVENTORY_CODE column from MTL_MATERIAL_TRANSACTIONS table
+ *  2016-JUL-12    Steven S. Santos          CHG#11 - Updated the Unit Cost column to display up to 6 decimal places.
+ *  2016-NOV-03    Khristine Austero         [PROD] Modified for discreet org cost validation
+ 
+ -->
+ <properties>
+  <property name="xml_tag_case" value="upper" />
+ </properties>
+ <parameters>
+  <parameter name="P_ENTITY" dataType="VARCHAR2"/>
+  <parameter name="P_PERIOD_CODE" dataType="VARCHAR2"/>
+  <parameter name="P_ORG" dataType="VARCHAR2"/>
+  <parameter name="P_ITEM_NUM_FROM" dataType="VARCHAR2"/>
+  <parameter name="P_ITEM_NUM_TO" dataType="VARCHAR2"/>
+ </parameters>
+ <dataQuery>
+
+  <sqlStatement name="INV_VAL_SQL">
+   <![CDATA[ 
+WITH sql_query AS (
+               SELECT DISTINCT msi.segment1             AS ITEM_NUMBER --*CHG#6
+                             , msi.description          AS ITEM_DESCRIPTION
+                             , ood.organization_code    AS organization_code
+                             , ood.organization_name    AS organization_name
+                             , mmt.subinventory_code    AS SUBINVENTORY
+                             , FLV.DESCRIPTION          AS ITEM_TYPE              --*CHG#3
+                           --, mmt.attribute1           AS LOT_NUMBER             --*CHG#8
+                             , iob.onhand_quantity      AS QUANTITY /*DEFECT#51*/ --*CHG#5 --*CHG#9
+                           --, mmt.transaction_quantity AS QUANTITY       --*CHG#5
+                           --, mmt.primary_quantity     AS QUANTITY       --*CHG#7
+                             , mmt.transaction_id       AS TRANSACTION_ID --*CHG#5 --*CHG#6
+                             , msi.primary_uom_code     AS PRIMARY_UOM    -- mmt.transaction_uom     AS PRIMARY_UOM  --*CHG#2
+                             , mp.PROCESS_ENABLED_FLAG  AS PROCESS_ENABLED_FLAG
+                             , (CASE WHEN mp.PROCESS_ENABLED_FLAG = 'N' THEN (SELECT SUM(item_cost) 
+                                                                               FROM (SELECT DISTINCT cicd.cost_element
+                                                                                          , cicd.Resource_code
+                                                                                          , cicd.usage_rate_or_amount
+                                                                                          , cicd.item_cost
+                                                                                          , msi_disc.segment1
+                                                                                          , mp_disc.organization_code
+                                                                                          , cict.cost_type
+                                                                                          , msi_disc.inventory_item_id
+                                                                                          , mp_disc.organization_id 
+                                                                                       FROM cst_item_cost_details_v  cicd
+                                                                                          , mtl_system_items         msi_disc
+                                                                                          , mtl_parameters           mp_disc
+                                                                                          , CST_ITEM_COST_TYPE_V     cict
+                                                                                      WHERE cicd.inventory_item_id   =   msi_disc.inventory_item_id
+                                                                                        AND cicd.organization_id     =   msi_disc.organization_id
+                                                                                        AND cicd.organization_id     =   mp_disc.organization_id 
+                                                                                        AND cicd.inventory_item_id   =   cict.inventory_item_id
+                                                                                        AND cicd.organization_id     =   cict.organization_id
+                                                                                        --Modified for discreet org cost validation Khristine Austero 11/3/2016
+                                                                                        AND UPPER(cict.cost_type)  = 'FROZEN' 
+                                                                                        AND cicd.cost_type_id      = cict.cost_type_id
+                                                                                        --AND cicd.Resource_code  NOT IN ('YIELD_RES') --*CHG4
+                                                                                     ) disc_cost
+                                                                               WHERE disc_cost.inventory_item_id = msi.inventory_item_id
+                                                                                 AND disc_cost.organization_id   = msi.organization_id
+                                                                                 AND disc_cost.organization_id   = mp.organization_id
+                                                                            )
+                                     WHEN mp.PROCESS_ENABLED_FLAG = 'Y' THEN (SELECT SUM(cmpnt_cost)
+                                                                                FROM (SELECT DISTINCT mp_proc.organization_id
+                                                                                           , msi_proc.segment1
+                                                                                           , ccd.inventory_item_id
+                                                                                           , ccd.cmpnt_cost
+                                                                                           , ccm.cost_cmpntcls_code 
+                                                                                           , ccd.period_id
+                                                                                        FROM CM_CMPT_DTL        ccd
+                                                                                           , CM_CMPT_MST        ccm
+                                                                                           , mtl_system_items   msi_proc
+                                                                                           , mtl_parameters     mp_proc
+                                                                                       WHERE ccd.inventory_item_id   = msi_proc.inventory_item_id
+                                                                                         AND ccd.organization_id     = msi_proc.organization_id
+                                                                                         AND ccd.cost_cmpntcls_id    = ccm.cost_cmpntcls_id
+                                                                                         AND ccd.organization_id     = mp_proc.organization_id 
+                                                                                         AND ccd.organization_id     = msi_proc.organization_id 
+                                                                                         --Changes AFLores 4/17/2016
+                                                                                         AND ccd.delete_mark         = 0
+                                                                                         --AND ccm.cost_cmpntcls_code NOT IN ('YIELD_RES') --*CHG4
+                                                                                     ) proc_cost
+                                                                                 WHERE proc_cost.period_id         = gps.period_id
+                                                                                 --AND mmt.TRANSACTION_DATE        >= gps.START_DATE
+                                                                                 --AND mmt.TRANSACTION_DATE        < gps.END_DATE + 1
+                                                                                   AND proc_cost.inventory_item_id = msi.inventory_item_id
+                                                                                   AND proc_cost.organization_id   = msi.organization_id 
+                                                                                   AND proc_cost.organization_id   = mp.organization_id 
+                                                                              )
+                               END ) AS UNIT_COST
+                          FROM INVBV_ONHAND_BALANCES          iob
+                             , MTL_MATERIAL_TRANSACTIONS      mmt
+                             , MTL_SYSTEM_ITEMS_b             msi
+                             , HR_OPERATING_UNITS             hou
+                             , ORG_ORGANIZATION_DEFINITIONS   ood
+                             , XLE_ENTITY_PROFILES            xep
+                             , MTL_PARAMETERS                 mp
+                             , GMF_PERIOD_STATUSES            gps
+                             , fnd_lookup_values              flv   --*CHG#3
+                             , mtl_item_catalog_groups        micg  --*CHG#3
+                         WHERE iob.INVENTORY_ITEM_ID        = msi.INVENTORY_ITEM_ID
+                           AND iob.ORGANIZATION_ID          = msi.ORGANIZATION_ID
+                           AND iob.create_transaction_id    = mmt.transaction_id    --*CHG#1  --*CHG#9
+                           AND iob.date_received            = mmt.transaction_date  --*CHG#1  --*CHG#9
+                         --AND iob.inventory_item_id        = mmt.inventory_item_id --*CHG#1  --*CHG#9
+                         --AND iob.organization_id          = mmt.organization_id   --*CHG#1  --*CHG#9
+                           AND ood.ORGANIZATION_ID          = iob.ORGANIZATION_ID 
+                           AND mmt.INVENTORY_ITEM_ID        = msi.INVENTORY_ITEM_ID
+                           AND hou.DEFAULT_LEGAL_CONTEXT_ID = ood.LEGAL_ENTITY
+                           AND mmt.ORGANIZATION_ID          = ood.ORGANIZATION_ID
+                           AND mmt.ORGANIZATION_ID          = msi.ORGANIZATION_ID
+                           AND ood.LEGAL_ENTITY             = xep.LEGAL_ENTITY_ID
+                           AND mp.ORGANIZATION_ID           = mmt.ORGANIZATION_ID 
+                           AND ood.ORGANIZATION_CODE NOT IN ('LEG', 'ZZZ')
+                           AND flv.lookup_type              = 'XXNBTY_SUBINVCODE_LOOKUP'   --*CHG#3
+                           AND flv.meaning                  = MICG.SEGMENT1                --*CHG#3
+                           AND micg.item_catalog_group_id   = msi.item_catalog_group_id    --*CHG#3
+                           AND mmt.SUBINVENTORY_CODE        NOT IN ('YIELD COMP')          --*CHG#4
+                          -- PARAMETERS --
+                           AND (TRIM(msi.SEGMENT1) >= (TRIM(:P_ITEM_NUM_FROM))
+                                  OR :P_ITEM_NUM_FROM IS NULL)
+                           AND (TRIM(msi.SEGMENT1) <= (TRIM(:P_ITEM_NUM_TO)) 
+                                  OR :P_ITEM_NUM_TO IS NULL)
+                           AND (xep.NAME = :P_ENTITY
+                                  OR :P_ENTITY IS NULL)
+                           AND (ood.ORGANIZATION_CODE = :P_ORG
+                                  OR :P_ORG IS NULL)
+                           AND (gps.period_code = :P_PERIOD_CODE
+                                  OR :P_PERIOD_CODE IS NULL)
+)
+  SELECT INDEX_ID
+       , ITEM_NUMBER
+       , ITEM_DESCRIPTION
+       , organization_code
+       , organization_name
+       , SUBINVENTORY
+       , ITEM_TYPE
+     --, TRIM(LOT_NUMBER) AS LOT_NUMBER  --*CHG#8
+       , TRIM(TO_CHAR(QUANTITY,'999G999G999G999G999D000')) AS QUANTITY
+       , PRIMARY_UOM
+       , TRIM(TO_CHAR(UNIT_COST,'999G999G999G999G999D000000')) AS UNIT_COST   --*CHG#11
+       , PROCESS_ENABLED_FLAG
+       , TRIM(TO_CHAR(TOTAL_VALUE,'999G999G999G999G999D00')) AS TOTAL_VALUE
+       , TRIM(TO_CHAR(OST_QTY,'999G999G999G999G999D000')) AS OST_QTY
+       , TRIM(TO_CHAR(OST_TOTAL_VALUE,'999G999G999G999G999D00')) AS OST_TOTAL_VALUE
+       , TRIM(TO_CHAR(IT_QTY,'999G999G999G999G999D000')) AS IT_QTY
+       , TRIM(TO_CHAR(IT_TOTAL_VALUE,'999G999G999G999G999D00')) AS IT_TOTAL_VALUE
+       , TRIM(TO_CHAR(GRND_QTY,'999G999G999G999G999D000')) AS GRND_QTY
+       , TRIM(TO_CHAR(GRND_TV,'999G999G999G999G999D00')) AS GRND_TV
+    FROM (
+   ---------------------------
+   -- ORG SUB TOTAL--
+   ---------------------------
+          SELECT 1    AS INDEX_ID 
+               , NULL AS ITEM_NUMBER
+               , NULL AS ITEM_DESCRIPTION
+               , organization_code
+               , organization_name
+               , NULL AS SUBINVENTORY
+               , NULL AS ITEM_TYPE
+             --, NULL AS LOT_NUMBER  --*CHG#8
+               , NULL AS QUANTITY
+               , NULL AS PRIMARY_UOM
+               , NULL AS UNIT_COST
+               , NULL AS PROCESS_ENABLED_FLAG
+               , NULL AS TOTAL_VALUE
+               , OST_QTY
+               , OST_TOTAL_VALUE
+               , NULL AS IT_QTY
+               , NULL AS IT_TOTAL_VALUE
+               , NULL AS GRND_QTY
+               , NULL AS GRND_TV
+            FROM (
+                  SELECT 1    AS INDEX_ID 
+                       , NULL AS ITEM_NUMBER
+                       , NULL AS ITEM_DESCRIPTION
+                       , organization_code
+                       , organization_name
+                       , NULL AS SUBINVENTORY
+                       , NULL AS ITEM_TYPE
+                     --, NULL AS LOT_NUMBER  --*CHG#8
+                       , SUM(NVL(QUANTITY,0)) AS OST_QTY
+                       , NULL AS PRIMARY_UOM
+                       , NULL AS UNIT_COST
+                       , NULL AS PROCESS_ENABLED_FLAG
+                       , SUM(NVL(QUANTITY,0) * NVL(UNIT_COST , 0)) OST_TOTAL_VALUE
+                    FROM sql_query
+                GROUP BY ORGANIZATION_CODE
+                       , ORGANIZATION_NAME
+                       , NULL
+                       , 1
+                 )
+         UNION ALL
+         ---------------------------
+         -- ITEM TOTAL--
+         ---------------------------
+          SELECT 2 AS INDEX_ID
+               , ITEM_NUMBER
+               , ITEM_DESCRIPTION
+               , organization_code
+               , organization_name
+               , NULL AS SUBINVENTORY
+               , NULL AS ITEM_TYPE
+             --, NULL AS LOT_NUMBER  --*CHG#8
+               , NULL AS QUANTITY
+               , NULL AS PRIMARY_UOM
+               , NULL AS UNIT_COST
+               , NULL AS PROCESS_ENABLED_FLAG
+               , NULL AS TOTAL_VALUE
+               , NULL AS OST_QTY
+               , NULL AS OST_TOTAL_VALUE
+               , IT_QTY
+               , IT_TOTAL_VALUE
+               , NULL AS GRND_QTY
+               , NULL AS GRND_TV
+            FROM (
+                  SELECT 2 AS INDEX_ID
+                       , ITEM_NUMBER ITEM_NUMBER
+                       , ITEM_DESCRIPTION ITEM_DESCRIPTION
+                       , organization_code organization_code
+                       , organization_name organization_name
+                       , NULL AS SUBINVENTORY
+                       , NULL AS ITEM_TYPE
+                     --, NULL AS LOT_NUMBER  --*CHG#8
+                       , SUM(NVL(QUANTITY,0)) IT_QTY
+                       , NULL AS PRIMARY_UOM
+                       , NULL AS UNIT_COST
+                       , NULL AS PROCESS_ENABLED_FLAG
+                       , SUM(NVL(QUANTITY,0) * NVL(UNIT_COST , 0)) IT_TOTAL_VALUE
+                    FROM sql_query
+                    GROUP BY 2 
+                  , ITEM_NUMBER
+                  , ITEM_DESCRIPTION
+                  , organization_code
+                  , organization_name
+                  , NULL
+                 )
+            UNION ALL
+            ---------------------------
+            -- GROUP BY SUBINVENTORY --
+            ---------------------------
+            SELECT 3 AS INDEX_ID
+                 , ITEM_NUMBER
+                 , ITEM_DESCRIPTION
+                 , organization_code
+                 , organization_name
+                 , SUBINVENTORY
+                 , ITEM_TYPE
+               --, LOT_NUMBER  --*CHG#8
+                 , QUANTITY
+                 , PRIMARY_UOM
+                 , UNIT_COST
+                 , PROCESS_ENABLED_FLAG
+                 , TOTAL_VALUE
+                 , NULL AS OST_QTY
+                 , NULL AS OST_TOTAL_VALUE
+                 , NULL AS IT_QTY
+                 , NULL AS IT_TOTAL_VALUE
+                 , NULL AS GRND_QTY
+                 , NULL AS GRND_TV
+             FROM (
+                   SELECT 3 AS INDEX_ID
+                        , ITEM_NUMBER
+                        , ITEM_DESCRIPTION
+                        , organization_code
+                        , organization_name
+                        , SUBINVENTORY
+                        , ITEM_TYPE
+                      --, LOT_NUMBER     --*CHG#8
+                      --, TRANSACTION_ID --*CHG#6
+                        , SUM(NVL(QUANTITY,0)) AS QUANTITY
+                        , PRIMARY_UOM
+                        , NVL(UNIT_COST,0) AS UNIT_COST
+                        , PROCESS_ENABLED_FLAG
+                        , SUM(NVL(QUANTITY,0) * NVL(UNIT_COST , 0)) AS TOTAL_VALUE
+                     FROM sql_query
+                    GROUP BY 3
+                        , ITEM_NUMBER
+                        , ITEM_DESCRIPTION
+                        , organization_code
+                        , organization_name
+                        , SUBINVENTORY
+                        , ITEM_TYPE
+                      --, LOT_NUMBER  --*CHG#8
+                      --, TRANSACTION_ID
+                        , PRIMARY_UOM
+                        , UNIT_COST
+                        , PROCESS_ENABLED_FLAG
+                        , NVL(UNIT_COST,0)
+                        , NULL
+                  )
+            UNION ALL
+            ---------------------------
+            -- GRAND TOTAL--
+            ---------------------------
+                   SELECT 4    AS INDEX_ID 
+                        , NULL AS ITEM_NUMBER
+                        , NULL AS ITEM_DESCRIPTION
+                        , NULL AS organization_code
+                        , NULL AS organization_name
+                        , NULL AS SUBINVENTORY
+                        , NULL AS ITEM_TYPE
+                      --, NULL AS LOT_NUMBER  --*CHG#8
+                        , NULL AS QUANTITY
+                        , NULL AS PRIMARY_UOM
+                        , NULL AS UNIT_COST
+                        , NULL AS PROCESS_ENABLED_FLAG
+                        , NULL AS TOTAL_VALUE
+                        , NULL AS OST_QTY
+                        , NULL AS OST_TOTAL_VALUE
+                        , NULL AS IT_QTY
+                        , NULL AS IT_TOTAL_VALUE
+                        , GRND_QTY
+                        , GRND_TV
+                   FROM (
+                         SELECT 4    AS INDEX_ID 
+                              , NULL AS ITEM_NUMBER
+                              , NULL AS ITEM_DESCRIPTION
+                              , NULL AS organization_code
+                              , NULL AS organization_name
+                              , NULL AS SUBINVENTORY
+                              , NULL AS ITEM_TYPE
+                            --, NULL AS LOT_NUMBER  --*CHG#8
+                              , SUM(NVL(QUANTITY,0)) AS GRND_QTY
+                              , NULL AS PRIMARY_UOM
+                              , NULL AS UNIT_COST
+                              , NULL AS PROCESS_ENABLED_FLAG
+                              , SUM(NVL(QUANTITY,0) * NVL(UNIT_COST , 0)) GRND_TV
+                           FROM sql_query
+                          GROUP BY NULL
+                              , 4
+                        )
+        )
+        ORDER BY ORGANIZATION_CODE ASC NULLS LAST
+            , ORGANIZATION_NAME    ASC NULLS LAST
+            , INDEX_ID
+            , ITEM_NUMBER
+            , SUBINVENTORY         ASC NULLS FIRST
+            , ITEM_TYPE
+          --, LOT_NUMBER  --*CHG#8
+   ]]>
+  </sqlStatement>
+ </dataQuery>
+ <dataStructure>
+  <group name="MAIN_SQL" dataType="VARCHAR2" source="INV_VAL_SQL">
+       <element name="INDEX_ID" dataType="NUMBER" value="INDEX_ID" />
+       <element name="ITEM_NUMBER" dataType="VARCHAR2" value="ITEM_NUMBER" />
+       <element name="ITEM_DESCRIPTION" dataType="VARCHAR2" value="ITEM_DESCRIPTION" />
+       <element name="ORGANIZATION_CODE" dataType="VARCHAR2" value="ORGANIZATION_CODE" />
+       <element name="ORGANIZATION_NAME" dataType="VARCHAR2" value="ORGANIZATION_NAME" />
+       <element name="SUBINVENTORY" dataType="VARCHAR2" value="SUBINVENTORY" />
+       <element name="LOT_NUMBER" dataType="VARCHAR2" value="LOT_NUMBER" />
+       <element name="QUANTITY" dataType="NUMBER" value="QUANTITY" />
+       <element name="PRIMARY_UOM" dataType="VARCHAR2" value="PRIMARY_UOM" />
+       <element name="UNIT_COST" dataType="NUMBER" value="UNIT_COST" />
+       <element name="PROCESS_ENABLED_FLAG" dataType="VARCHAR2" value="PROCESS_ENABLED_FLAG" />
+       <element name="TOTAL_VALUE" dataType="NUMBER" value="TOTAL_VALUE" />
+       <element name="OST_QTY" dataType="NUMBER" value="OST_QTY" />
+       <element name="OST_TOTAL_VALUE" dataType="NUMBER" value="OST_TOTAL_VALUE" />
+       <element name="IT_QTY" dataType="NUMBER" value="IT_QTY" />
+       <element name="IT_TOTAL_VALUE" dataType="NUMBER" value="IT_TOTAL_VALUE" />
+       <element name="GRND_QTY" dataType="NUMBER" value="GRND_QTY" />
+       <element name="GRND_TV" dataType="NUMBER" value="GRND_TV" />
+  </group>
+ </dataStructure>
+</dataTemplate>
